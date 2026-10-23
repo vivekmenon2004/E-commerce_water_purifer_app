@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Calinfco Water Purifiers",
+    "slug": "calinfco-water-purifier",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "calinfco",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.calinfco.waterpurifier"
+    },
+    "android": {
+      "package": "com.calinfco.waterpurifier",
+      "adaptiveIcon": {
+        "backgroundColor": "#0077B6",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0077B6",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 80
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

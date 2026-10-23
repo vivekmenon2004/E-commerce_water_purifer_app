@@ -1,0 +1,49 @@
+{
+  "name": "Calinfco - Periodic Filter Replacement Reminder",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "schedule-daily-check",
+      "name": "Schedule Daily Check (9am)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    filterLifespanDays: 180,\n    reminderThresholdDays: 15,\n    alertMessage: 'Your Calinfco RO carbon and sediment filters have completed 5.5 months of pure water filtration. Book your scheduled filter replacement or water TDS purity check now to ensure 100% healthy drinking water.'\n  }\n}];"
+      },
+      "id": "compute-filter-lifecycle",
+      "name": "Compute Filter Lifecycle",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    }
+  ],
+  "connections": {
+    "Schedule Daily Check (9am)": {
+      "main": [
+        [
+          {
+            "node": "Compute Filter Lifecycle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "name": "Calinfco - Service Request Dispatch",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "service-dispatch",
+        "responseMode": "onReceived"
+      },
+      "id": "webhook-service-dispatch",
+      "name": "Webhook Service Dispatch",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const req = $json.body;\nreturn [{\n  json: {\n    ticketId: req.id || 'SRV-' + Date.now(),\n    customerName: req.customerName,\n    customerAddress: req.address,\n    purifierModel: req.purifierModel || 'Calinfco RO+UV Alkaline',\n    serviceType: req.requestType || 'Maintenance / Filter Replacement',\n    preferredSlot: req.scheduledDate || 'Tomorrow 10:00 AM - 01:00 PM',\n    postalCode: req.postalCode || '560001'\n  }\n}];"
+      },
+      "id": "prepare-dispatch-payload",
+      "name": "Prepare Dispatch Details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Service Dispatch": {
+      "main": [
+        [
+          {
+            "node": "Prepare Dispatch Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

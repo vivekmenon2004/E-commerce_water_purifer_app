@@ -1,0 +1,97 @@
+{
+  "name": "Calinfco - Order Confirmation & Installation Dispatch",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "order-created",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "id": "webhook-order-created",
+      "name": "Webhook Order Created",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const order = $json.body;\nconst customer = order.customer || {};\nconst itemsSummary = (order.items || []).map(i => `${i.name} (Qty: ${i.quantity})`).join(', ');\n\nreturn [{\n  json: {\n    orderId: order.id || 'ORD-' + Math.floor(100000 + Math.random() * 900000),\n    customerName: customer.name || 'Valued Customer',\n    customerPhone: customer.phone || '',\n    itemsSummary,\n    totalAmount: order.totalAmount || 0,\n    deliveryAddress: order.shippingAddress || '',\n    needsInstallation: (order.items || []).some(i => i.category === 'purifier'),\n    notificationMessage: `Hello ${customer.name}, thank you for choosing Calinfco Pure Water! Your order #${order.id} for ${itemsSummary} has been received. Our team will contact you shortly to schedule free doorstep installation.`\n  }\n}];"
+      },
+      "id": "format-order-payload",
+      "name": "Format Order Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.needsInstallation }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-installation-needed",
+      "name": "Needs Free Installation?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "collection": "serviceRequests",
+        "fields": "customerId, orderId, requestType, status, priority, createdAt",
+        "values": "={{ $json.customerId }}, ={{ $json.orderId }}, installation, open, high, ={{ $now.toISO() }}"
+      },
+      "id": "create-installation-ticket",
+      "name": "Create Service Ticket",
+      "type": "n8n-nodes-base.firestore",
+      "typeVersion": 1,
+      "position": [950, 240]
+    }
+  ],
+  "connections": {
+    "Webhook Order Created": {
+      "main": [
+        [
+          {
+            "node": "Format Order Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Order Data": {
+      "main": [
+        [
+          {
+            "node": "Needs Free Installation?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Free Installation?": {
+      "main": [
+        [
+          {
+            "node": "Create Service Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

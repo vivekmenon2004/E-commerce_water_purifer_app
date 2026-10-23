@@ -1,0 +1,24 @@
+{
+  "name": "calinfco-water-purifier-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:admin": "npm --prefix apps/admin run dev",
+    "dev:mobile": "npm --prefix apps/mobile start",
+    "build:admin": "npm --prefix apps/admin run build",
+    "lint:admin": "npm --prefix apps/admin run lint",
+    "lint:mobile": "npm --prefix apps/mobile run lint"
+  },
+  "keywords": [
+    "water-purifier",
+    "e-commerce",
+    "expo",
+    "nextjs",
+    "calinfco"
+  ],
+  "author": "Calinfco Team",
+  "license": "UNLICENSED"
+}
