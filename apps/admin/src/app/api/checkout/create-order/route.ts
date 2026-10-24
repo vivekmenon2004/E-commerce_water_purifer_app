@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { doc, setDoc } from 'firebase/firestore';
+import { db, isDemoMode } from '@/lib/firebase';
 
 // Server-side in-memory idempotency registry (persists across requests in runtime)
 const processedPayments = new Map<string, any>();
@@ -93,6 +95,16 @@ export async function POST(request: Request) {
     }
     if (paymentId) {
       processedPayments.set(paymentId, newOrder);
+    }
+
+    // 4. Save to Firestore if connected
+    if (!isDemoMode && db) {
+      try {
+        const orderRef = doc(db as any, 'orders', orderId);
+        await setDoc(orderRef, newOrder);
+      } catch (dbErr) {
+        console.warn('[Admin API] Could not write order to Firestore, cached in runtime:', dbErr);
+      }
     }
 
     return NextResponse.json({

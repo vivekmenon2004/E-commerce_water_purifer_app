@@ -23,7 +23,7 @@ import { CheckoutService, ValidationResult } from '../lib/checkout-service';
 import { UserAddress, OrderItem } from '../types';
 
 export default function CheckoutScreen() {
-  const { cart, subtotal, discount, estimatedTax, deliveryFee, total, promoCode, clearCart } = useCart();
+  const { cart, subtotal, discount, estimatedTax, deliveryFee, total, promoCode, clearCart, isInitialized } = useCart();
   const { user, addAddress } = useAuth();
 
   // State
@@ -222,6 +222,19 @@ export default function CheckoutScreen() {
       setCheckoutError('Payment signature verification failed.');
     }
   };
+
+  if (!isInitialized) {
+    return (
+      <ThemedView style={styles.container}>
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.emptyContainer}>
+            <ActivityIndicator size="large" color="#38bdf8" />
+            <Text style={[styles.emptyDesc, { marginTop: 12 }]}>Loading your cart...</Text>
+          </View>
+        </SafeAreaView>
+      </ThemedView>
+    );
+  }
 
   if (cart.length === 0) {
     return (

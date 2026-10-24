@@ -25,6 +25,7 @@ interface CartContextType {
   promoCode: string;
   applyPromoCode: (code: string) => { success: boolean; message: string };
   removePromoCode: () => void;
+  isInitialized: boolean;
 }
 
 const CartContext = createContext<CartContextType>({} as CartContextType);
@@ -206,6 +207,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         promoCode,
         applyPromoCode,
         removePromoCode,
+        isInitialized,
       }}>
       {children}
     </CartContext.Provider>

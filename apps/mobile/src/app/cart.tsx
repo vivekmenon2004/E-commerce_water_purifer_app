@@ -9,6 +9,7 @@ import {
   TextInput,
   Alert,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -34,6 +35,7 @@ export default function CartScreen() {
     promoCode,
     applyPromoCode,
     removePromoCode,
+    isInitialized,
   } = useCart();
 
   const { user } = useAuth();
@@ -52,6 +54,17 @@ export default function CartScreen() {
     if (cart.length === 0) return;
     router.push('/checkout' as any);
   };
+
+  if (!isInitialized) {
+    return (
+      <ThemedView style={styles.container}>
+        <SafeAreaView style={[styles.safeArea, { justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator size="large" color="#0284c7" />
+          <ThemedText style={{ marginTop: 12, color: '#94a3b8' }}>Loading your cart...</ThemedText>
+        </SafeAreaView>
+      </ThemedView>
+    );
+  }
 
   if (orderPlaced) {
     return (
