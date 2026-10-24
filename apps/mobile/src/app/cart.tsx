@@ -38,7 +38,7 @@ export default function CartScreen() {
     isInitialized,
   } = useCart();
 
-  const { user } = useAuth();
+  const { user, isDealer, isPendingDealer } = useAuth();
   const [promoInput, setPromoInput] = useState('');
   const [promoMsg, setPromoMsg] = useState<{ text: string; isError: boolean } | null>(null);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -113,17 +113,38 @@ export default function CartScreen() {
           {/* Header */}
           <View style={styles.header}>
             <ThemedText type="subtitle" themeColor="primary" style={styles.badgeText}>
-              🛒 YOUR SHOPPING CART
+              {isDealer ? '🏢 WHOLESALE DEALER CART' : '🛒 YOUR SHOPPING CART'}
             </ThemedText>
             <View style={styles.titleRow}>
               <ThemedText type="title" style={styles.title}>
-                Cart Summary
+                {isDealer ? 'Wholesale Cart' : 'Cart Summary'}
               </ThemedText>
-              <View style={styles.countBadge}>
-                <Text style={styles.countBadgeText}>{itemCount} items</Text>
+              <View style={[styles.countBadge, isDealer && { backgroundColor: '#065f46' }]}>
+                <Text style={styles.countBadgeText}>{itemCount} {isDealer ? 'units' : 'items'}</Text>
               </View>
             </View>
           </View>
+
+          {/* Dealer Wholesale Active Banner */}
+          {isDealer && (
+            <View style={{ backgroundColor: '#064e3b', borderWidth: 1, borderColor: '#10b981', borderRadius: 12, padding: 12, marginBottom: 16, flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ fontSize: 24, marginRight: 10 }}>🏢</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#6ee7b7', fontWeight: 'bold', fontSize: 14 }}>Verified Dealership Wholesale Active</Text>
+                <Text style={{ color: '#a7f3d0', fontSize: 12 }}>Special wholesale pricing and bulk stock validation active on all items.</Text>
+              </View>
+            </View>
+          )}
+
+          {isPendingDealer && (
+            <View style={{ backgroundColor: '#451a03', borderWidth: 1, borderColor: '#f59e0b', borderRadius: 12, padding: 12, marginBottom: 16, flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ fontSize: 24, marginRight: 10 }}>⏳</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#fcd34d', fontWeight: 'bold', fontSize: 14 }}>Dealer Application Under Review</Text>
+                <Text style={{ color: '#fef3c7', fontSize: 12 }}>Pending admin verification. Standard retail prices apply until approved.</Text>
+              </View>
+            </View>
+          )}
 
           {cart.length === 0 ? (
             /* ================= EMPTY STATE ================= */
@@ -171,10 +192,13 @@ export default function CartScreen() {
                         </Text>
 
                         <Text style={styles.unitPrice}>
-                          ₹{item.product.retailPrice.toLocaleString('en-IN')}{' '}
+                          ₹{(isDealer ? item.product.dealerPrice : item.product.retailPrice).toLocaleString('en-IN')}{' '}
                           <Text style={styles.mrpText}>
                             ₹{item.product.mrp.toLocaleString('en-IN')}
                           </Text>
+                          {isDealer && (
+                            <Text style={{ color: '#10b981', fontWeight: '700', fontSize: 12 }}> [Wholesale]</Text>
+                          )}
                         </Text>
 
                         {/* Stock warning */}
@@ -208,9 +232,24 @@ export default function CartScreen() {
                           </View>
 
                           <Text style={styles.itemTotalPrice}>
-                            ₹{(item.product.retailPrice * item.quantity).toLocaleString('en-IN')}
+                            ₹{((isDealer ? item.product.dealerPrice : item.product.retailPrice) * item.quantity).toLocaleString('en-IN')}
                           </Text>
                         </View>
+
+                        {/* Bulk Controls for Dealers */}
+                        {isDealer && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6 }}>
+                            <Text style={{ fontSize: 11, color: '#94a3b8', fontWeight: '600' }}>Bulk:</Text>
+                            {[5, 10, 25].map(step => (
+                              <TouchableOpacity
+                                key={step}
+                                style={{ backgroundColor: '#0284c7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}
+                                onPress={() => updateQuantity(item.product.id, Math.min(item.product.stock, item.quantity + step))}>
+                                <Text style={{ color: '#ffffff', fontSize: 11, fontWeight: '700' }}>+{step}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        )}
                       </View>
                     </View>
                   );

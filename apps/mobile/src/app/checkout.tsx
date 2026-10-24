@@ -24,12 +24,12 @@ import { UserAddress, OrderItem } from '../types';
 
 export default function CheckoutScreen() {
   const { cart, subtotal, discount, estimatedTax, deliveryFee, total, promoCode, clearCart, isInitialized } = useCart();
-  const { user, addAddress } = useAuth();
+  const { user, addAddress, isDealer } = useAuth();
 
   // State
   const [selectedAddress, setSelectedAddress] = useState<UserAddress | null>(null);
   const [showAddressPicker, setShowAddressPicker] = useState<boolean>(false);
-  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay');
+  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod' | 'dealer_credit'>('razorpay');
   const [installationSlot, setInstallationSlot] = useState<string>('Next Day Morning (9 AM - 12 PM)');
   const [deliveryNotes, setDeliveryNotes] = useState<string>('');
 
@@ -67,6 +67,7 @@ export default function CheckoutScreen() {
       }
 
       setIsValidating(true);
+      const isApprovedDealer = user?.role === 'dealer' && user?.dealerStatus === 'approved';
       const itemsPayload = cart.map(item => ({
         productId: item.product.id,
         sku: item.product.sku,
@@ -76,7 +77,8 @@ export default function CheckoutScreen() {
       const res = await CheckoutService.validateCartItems(
         itemsPayload,
         promoCode,
-        user?.role === 'dealer' ? 'dealer' : 'customer'
+        isApprovedDealer ? 'dealer' : 'customer',
+        user?.id
       );
 
       if (res.warnings && res.warnings.length > 0) {
@@ -100,24 +102,28 @@ export default function CheckoutScreen() {
   const executeOrderCreation = async (paymentDetails: any) => {
     if (!user || !selectedAddress) return;
 
-    const itemsToSave: OrderItem[] = (validatedData?.items || cart.map(i => ({
-      productId: i.product.id,
-      sku: i.product.sku,
-      name: i.product.name,
-      category: i.product.category,
-      unitPrice: i.product.retailPrice,
-      mrp: i.product.mrp,
-      quantity: i.quantity,
-      total: i.product.retailPrice * i.quantity,
-      imageUrl: i.product.imageUrl,
-    })));
+    const isApprovedDealer = user?.role === 'dealer' && user?.dealerStatus === 'approved';
+    const itemsToSave: OrderItem[] = (validatedData?.items || cart.map(i => {
+      const price = isApprovedDealer ? i.product.dealerPrice : i.product.retailPrice;
+      return {
+        productId: i.product.id,
+        sku: i.product.sku,
+        name: i.product.name,
+        category: i.product.category,
+        unitPrice: price,
+        mrp: i.product.mrp,
+        quantity: i.quantity,
+        total: price * i.quantity,
+        imageUrl: i.product.imageUrl,
+      };
+    }));
 
     const orderPayload = {
       customerId: user.id,
       customerName: user.name || selectedAddress.recipientName || 'Valued Customer',
       customerEmail: user.email,
       customerPhone: selectedAddress.phone || user.phone || '+91 98765 00000',
-      userRoleAtPurchase: (user.role === 'dealer' ? 'dealer' : 'customer') as any,
+      userRoleAtPurchase: (isApprovedDealer ? 'dealer' : 'customer') as any,
       items: itemsToSave,
       subtotal: validatedData?.subtotal || subtotal,
       discount: validatedData?.discount || discount,
@@ -125,7 +131,7 @@ export default function CheckoutScreen() {
       deliveryFee: validatedData?.deliveryFee ?? deliveryFee,
       totalAmount: validatedData?.totalAmount || total,
       paymentMethod,
-      paymentStatus: (paymentMethod === 'cod' ? 'pending' : 'paid') as any,
+      paymentStatus: (paymentMethod === 'cod' || paymentMethod === 'dealer_credit' ? 'pending' : 'paid') as any,
       orderStatus: 'placed' as any,
       shippingAddress: selectedAddress,
       idempotencyKey: `idem_${user.id}_${Date.now()}`,
@@ -160,10 +166,11 @@ export default function CheckoutScreen() {
 
     const finalAmount = validatedData?.totalAmount || total;
 
-    // A. Cash on Delivery Flow
-    if (paymentMethod === 'cod') {
+    // A. Cash on Delivery or Dealer Credit Flow
+    if (paymentMethod === 'cod' || paymentMethod === 'dealer_credit') {
       await executeOrderCreation({
         isMock: false,
+        type: paymentMethod === 'dealer_credit' ? 'dealer_credit_net30' : 'cash_on_delivery',
         paidAt: null,
       });
       return;
@@ -401,26 +408,55 @@ export default function CheckoutScreen() {
           <View style={styles.card}>
             <Text style={styles.cardHeaderTitle}>3. Review Items ({cart.length})</Text>
             <View style={styles.itemsSummaryList}>
-              {cart.map(item => (
-                <View key={item.product.id} style={styles.itemSummaryRow}>
-                  <Image source={{ uri: item.product.imageUrl }} style={styles.itemThumb} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.itemNameText} numberOfLines={1}>{item.product.name}</Text>
-                    <Text style={styles.itemMetaText}>
-                      Qty: {item.quantity} × ₹{item.product.retailPrice.toLocaleString('en-IN')}
+              {cart.map(item => {
+                const itemUnitPrice = isDealer ? item.product.dealerPrice : item.product.retailPrice;
+                const itemLineTotal = itemUnitPrice * item.quantity;
+                return (
+                  <View key={item.product.id} style={styles.itemSummaryRow}>
+                    <Image source={{ uri: item.product.imageUrl }} style={styles.itemThumb} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.itemNameText} numberOfLines={1}>{item.product.name}</Text>
+                      <Text style={styles.itemMetaText}>
+                        Qty: {item.quantity} × ₹{itemUnitPrice.toLocaleString('en-IN')}{' '}
+                        {isDealer && <Text style={{ color: '#10b981', fontWeight: 'bold' }}>[Wholesale]</Text>}
+                      </Text>
+                    </View>
+                    <Text style={styles.itemPriceTotal}>
+                      ₹{itemLineTotal.toLocaleString('en-IN')}
                     </Text>
                   </View>
-                  <Text style={styles.itemPriceTotal}>
-                    ₹{(item.product.retailPrice * item.quantity).toLocaleString('en-IN')}
-                  </Text>
-                </View>
-              ))}
+                );
+              })}
             </View>
           </View>
 
-          {/* SECTION 4: PAYMENT METHOD (RAZORPAY TEST MODE & COD) */}
+          {/* SECTION 4: PAYMENT METHOD (RAZORPAY TEST MODE, COD & DEALER CREDIT) */}
           <View style={styles.card}>
             <Text style={styles.cardHeaderTitle}>4. Payment Method</Text>
+
+            {/* Dealer Credit Card (For Approved Dealers) */}
+            {isDealer && (
+              <TouchableOpacity
+                style={[styles.payOption, paymentMethod === 'dealer_credit' && styles.payOptionActive, { marginBottom: 10, borderColor: '#10b981' }]}
+                onPress={() => setPaymentMethod('dealer_credit')}>
+                <View style={styles.payOptionHeader}>
+                  <View style={[styles.radioCircle, paymentMethod === 'dealer_credit' && styles.radioCircleActive]}>
+                    {paymentMethod === 'dealer_credit' && <View style={styles.radioDot} />}
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <View style={styles.payBadgeRow}>
+                      <Text style={styles.payOptionTitle}>🏢 B2B 30-Day Dealer Credit Line</Text>
+                      <View style={[styles.testModeBadge, { backgroundColor: '#10b981' }]}>
+                        <Text style={styles.testModeBadgeText}>APPROVED DEALER</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.payOptionDesc}>
+                      Authorized Net-30 payment terms. Bulk invoice dispatched with consignment.
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            )}
 
             {/* Razorpay Test Mode Card */}
             <TouchableOpacity

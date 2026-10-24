@@ -18,7 +18,7 @@ import { useAuth } from '../../context/auth-context';
 import { CheckoutService } from '../../lib/checkout-service';
 import { Order } from '../../types';
 
-type OrderFilter = 'all' | 'active' | 'installed' | 'cancelled';
+type OrderFilter = 'all' | 'dealer' | 'active' | 'installed' | 'cancelled';
 
 export default function OrderHistoryScreen() {
   const { user } = useAuth();
@@ -42,6 +42,7 @@ export default function OrderHistoryScreen() {
   }, [user]);
 
   const filteredOrders = orders.filter(o => {
+    if (filter === 'dealer') return o.userRoleAtPurchase === 'dealer';
     if (filter === 'active') return o.orderStatus === 'placed' || o.orderStatus === 'confirmed' || o.orderStatus === 'dispatched';
     if (filter === 'installed') return o.orderStatus === 'installed';
     if (filter === 'cancelled') return o.orderStatus === 'cancelled';
@@ -57,15 +58,16 @@ export default function OrderHistoryScreen() {
             <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
               <Text style={styles.backBtnText}>← Back</Text>
             </TouchableOpacity>
-            <ThemedText type="title" style={styles.pageTitle}>My Orders</ThemedText>
+            <ThemedText type="title" style={styles.pageTitle}>Order History</ThemedText>
           </View>
 
           {/* Filter Pills */}
           <View style={styles.filterRow}>
             {[
               { id: 'all', label: 'All Orders' },
+              { id: 'dealer', label: '🏢 Wholesale' },
               { id: 'active', label: 'In Progress' },
-              { id: 'installed', label: 'Delivered / Installed' },
+              { id: 'installed', label: 'Installed' },
               { id: 'cancelled', label: 'Cancelled' },
             ].map(tab => (
               <TouchableOpacity
@@ -113,7 +115,14 @@ export default function OrderHistoryScreen() {
                     {/* Top Row */}
                     <View style={styles.orderTopRow}>
                       <View>
-                        <Text style={styles.orderIdText}>{order.id}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={styles.orderIdText}>{order.id}</Text>
+                          {order.userRoleAtPurchase === 'dealer' && (
+                            <View style={{ backgroundColor: '#064e3b', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: '#10b981' }}>
+                              <Text style={{ color: '#6ee7b7', fontSize: 10, fontWeight: '800' }}>WHOLESALE</Text>
+                            </View>
+                          )}
+                        </View>
                         <Text style={styles.orderDateText}>
                           Placed on {new Date(order.createdAt).toLocaleDateString('en-IN', {
                             day: 'numeric',

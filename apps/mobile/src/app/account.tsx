@@ -325,6 +325,53 @@ export default function AccountScreen() {
                 </View>
               )}
 
+              {/* DEALER COMMAND HUB (FOR APPROVED DEALERS) */}
+              {isDealer && (
+                <View style={[styles.hubCard, { borderColor: '#10b981', borderWidth: 1, backgroundColor: '#064e3b15' }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                    <Text style={{ fontSize: 20, marginRight: 8 }}>🏢</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.hubTitle, { color: '#10b981', marginBottom: 2 }]}>Wholesale Dealer Command Hub</Text>
+                      <Text style={{ color: '#94a3b8', fontSize: 11 }}>Active Dealership: {user.dealerDetails?.businessName}</Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.hubLinksGrid}>
+                    <TouchableOpacity
+                      style={[styles.hubLink, { borderColor: '#059669', borderWidth: 1 }]}
+                      onPress={() => router.push('/dealer-status' as any)}>
+                      <Text style={styles.hubLinkIcon}>📋</Text>
+                      <Text style={[styles.hubLinkText, { color: '#6ee7b7' }]}>Dealer Certificate</Text>
+                      <Text style={styles.hubLinkSub}>Privileges & Status</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.hubLink, { borderColor: '#059669', borderWidth: 1 }]}
+                      onPress={() => router.push('/explore' as any)}>
+                      <Text style={styles.hubLinkIcon}>🏷️</Text>
+                      <Text style={[styles.hubLinkText, { color: '#6ee7b7' }]}>Wholesale Catalog</Text>
+                      <Text style={styles.hubLinkSub}>30-45% Margin Rates</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.hubLink, { borderColor: '#059669', borderWidth: 1 }]}
+                      onPress={() => router.push('/orders' as any)}>
+                      <Text style={styles.hubLinkIcon}>📦</Text>
+                      <Text style={[styles.hubLinkText, { color: '#6ee7b7' }]}>Bulk Orders</Text>
+                      <Text style={styles.hubLinkSub}>B2B Consignments</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.hubLink, { borderColor: '#059669', borderWidth: 1 }]}
+                      onPress={() => router.push('/cart' as any)}>
+                      <Text style={styles.hubLinkIcon}>🛒</Text>
+                      <Text style={[styles.hubLinkText, { color: '#6ee7b7' }]}>Wholesale Cart</Text>
+                      <Text style={styles.hubLinkSub}>Bulk stock check</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
               {/* Customer Account Navigation Hub */}
               <View style={styles.hubCard}>
                 <Text style={styles.hubTitle}>Shopping & Customer Services</Text>
@@ -336,6 +383,16 @@ export default function AccountScreen() {
                     <Text style={styles.hubLinkIcon}>📦</Text>
                     <Text style={styles.hubLinkText}>My Orders</Text>
                     <Text style={styles.hubLinkSub}>Track & details</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.hubLink}
+                    onPress={() => router.push('/dealer-status' as any)}>
+                    <Text style={styles.hubLinkIcon}>🏢</Text>
+                    <Text style={styles.hubLinkText}>Dealership Portal</Text>
+                    <Text style={styles.hubLinkSub}>
+                      {isDealer ? 'Verified Active' : isPendingDealer ? 'Under Review ⏳' : 'Apply Wholesale'}
+                    </Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -485,8 +542,18 @@ export default function AccountScreen() {
                 </Text>
               </TouchableOpacity>
 
+              <TouchableOpacity
+                style={[styles.primaryAuthBtn, { backgroundColor: '#064e3b', marginTop: 10, borderColor: '#10b981', borderWidth: 1 }]}
+                onPress={() => {
+                  switchDemoPersona('approvedDealer');
+                }}>
+                <Text style={styles.primaryAuthBtnText}>
+                  🏢 Sign In as Authorized Dealer (Direct B2B)
+                </Text>
+              </TouchableOpacity>
+
               <Text style={styles.dealerNote}>
-                💡 Want to purchase wholesale? Register as a customer first, then apply for an Authorized Dealer account from your profile.
+                💡 Want to purchase wholesale? Register as a customer, then submit your business details in the Dealership Portal.
               </Text>
             </View>
           )}

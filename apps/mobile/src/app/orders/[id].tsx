@@ -125,7 +125,14 @@ export default function OrderDetailScreen() {
               <Text style={styles.backBtnText}>← All Orders</Text>
             </TouchableOpacity>
             <View style={styles.headerInfo}>
-              <ThemedText type="title" style={styles.orderTitle}>{order.id}</ThemedText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <ThemedText type="title" style={styles.orderTitle}>{order.id}</ThemedText>
+                {order.userRoleAtPurchase === 'dealer' && (
+                  <View style={{ backgroundColor: '#064e3b', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1, borderColor: '#10b981' }}>
+                    <Text style={{ color: '#6ee7b7', fontSize: 11, fontWeight: '800' }}>🏢 WHOLESALE B2B</Text>
+                  </View>
+                )}
+              </View>
               <Text style={styles.orderDate}>
                 Placed on {new Date(order.createdAt).toLocaleString('en-IN', {
                   day: 'numeric',
@@ -205,7 +212,10 @@ export default function OrderDetailScreen() {
                     <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
                     <Text style={styles.itemSku}>SKU: {item.sku} • {item.category}</Text>
                     <Text style={styles.itemQtyPrice}>
-                      Qty: {item.quantity} × ₹{item.unitPrice.toLocaleString('en-IN')}
+                      Qty: {item.quantity} × ₹{item.unitPrice.toLocaleString('en-IN')}{' '}
+                      {order.userRoleAtPurchase === 'dealer' && (
+                        <Text style={{ color: '#10b981', fontWeight: 'bold' }}>[Wholesale Price]</Text>
+                      )}
                     </Text>
                   </View>
                   <Text style={styles.itemTotal}>₹{item.total.toLocaleString('en-IN')}</Text>
@@ -262,7 +272,11 @@ export default function OrderDetailScreen() {
             <View style={styles.paymentInfoRow}>
               <Text style={styles.paymentKey}>Payment Method:</Text>
               <Text style={styles.paymentVal}>
-                {order.paymentMethod === 'razorpay' ? 'Razorpay Online (UPI/Card)' : 'Cash on Delivery (COD)'}
+                {order.paymentMethod === 'razorpay'
+                  ? 'Razorpay Online (UPI/Card)'
+                  : order.paymentMethod === 'dealer_credit'
+                  ? '🏢 B2B 30-Day Dealer Credit Line'
+                  : 'Cash on Delivery (COD)'}
               </Text>
             </View>
 

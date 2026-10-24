@@ -25,7 +25,7 @@ import { Product } from '@/types';
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { addToCart, toggleWishlist, isInWishlist } = useCart();
-  const { isDealer } = useAuth();
+  const { isDealer, isPendingDealer } = useAuth();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -180,6 +180,16 @@ export default function ProductDetailScreen() {
                 </View>
               </View>
               <Text style={styles.taxInclusiveText}>Inclusive of all taxes & free doorstep delivery</Text>
+              {isDealer && (
+                <Text style={{ color: '#10b981', fontSize: 12, fontWeight: '700', marginTop: 4 }}>
+                  ✓ B2B Wholesale Rate: ₹{(product.retailPrice - product.dealerPrice).toLocaleString('en-IN')} margin per unit below retail
+                </Text>
+              )}
+              {isPendingDealer && (
+                <Text style={{ color: '#f59e0b', fontSize: 12, fontWeight: '700', marginTop: 4 }}>
+                  ⏳ Dealership Pending: Wholesale pricing unlocks once approved by Admin
+                </Text>
+              )}
             </View>
 
             {/* Stock Availability */}
@@ -215,6 +225,32 @@ export default function ProductDetailScreen() {
                 </View>
                 {isMaxStockSelected && (
                   <Text style={styles.maxStockHint}>Maximum available stock reached</Text>
+                )}
+
+                {/* Bulk Quantity Presets for Dealers */}
+                {isDealer && inStock && (
+                  <View style={{ marginTop: 10 }}>
+                    <Text style={{ color: '#94a3b8', fontSize: 11, fontWeight: '700', marginBottom: 6 }}>Bulk Order Presets:</Text>
+                    <View style={{ flexDirection: 'row', gap: 6 }}>
+                      {[5, 10, 20, 50].map(bulk => {
+                        const isAvailable = product.stock >= bulk;
+                        return (
+                          <TouchableOpacity
+                            key={bulk}
+                            disabled={!isAvailable}
+                            style={[
+                              { backgroundColor: quantity === bulk ? '#0284c7' : '#1e293b', paddingVertical: 5, paddingHorizontal: 10, borderRadius: 6, borderWidth: 1, borderColor: '#334155' },
+                              !isAvailable && { opacity: 0.4 }
+                            ]}
+                            onPress={() => setQuantity(bulk)}>
+                            <Text style={{ color: quantity === bulk ? '#ffffff' : '#94a3b8', fontSize: 11, fontWeight: '700' }}>
+                              {bulk} units
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
                 )}
               </View>
             )}

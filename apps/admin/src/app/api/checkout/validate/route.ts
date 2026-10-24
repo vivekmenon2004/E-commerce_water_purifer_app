@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import fs from 'node:fs';
 import path from 'node:path';
+import { doc, getDoc } from 'firebase/firestore';
+import { db, isDemoMode, INITIAL_DEMO_USERS } from '@/lib/firebase';
 
 // Load authoritative seed products for server-side trusted price & stock verification
 function getAuthoritativeProducts() {
@@ -18,7 +20,7 @@ function getAuthoritativeProducts() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { items, promoCode, userRole = 'customer' } = body;
+    const { items, promoCode, userRole = 'customer', customerId } = body;
 
     if (!Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
@@ -27,8 +29,46 @@ export async function POST(request: Request) {
       );
     }
 
-    const authoritativeProducts = getAuthoritativeProducts();
+    // 1. Authoritative Role & Dealer Approval Verification
+    // ZERO TRUST: Never trust userRole passed from client.
+    let isVerifiedDealer = false;
+    let userDealerStatus = 'none';
+
+    if (customerId) {
+      if (!isDemoMode && db) {
+        try {
+          const userSnap = await getDoc(doc(db, 'users', customerId));
+          if (userSnap.exists()) {
+            const data = userSnap.data();
+            userDealerStatus = data.dealerStatus || 'none';
+            isVerifiedDealer = data.role === 'dealer' && data.dealerStatus === 'approved';
+          }
+        } catch (err) {
+          console.warn('[Server Validate] Error checking Firestore user role:', err);
+        }
+      } else {
+        const demoUser = INITIAL_DEMO_USERS.find(u => u.id === customerId);
+        if (demoUser) {
+          userDealerStatus = demoUser.dealerStatus || 'none';
+          isVerifiedDealer = demoUser.role === 'dealer' && demoUser.dealerStatus === 'approved';
+        }
+      }
+    }
+
     const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // If client claimed dealer prices but is NOT an approved dealer, strictly refuse wholesale pricing
+    if (userRole === 'dealer' && !isVerifiedDealer) {
+      warnings.push(
+        `Wholesale dealer pricing requires an approved dealer account. Status: "${userDealerStatus}". Standard retail pricing applied.`
+      );
+    }
+
+    const effectiveRole: 'customer' | 'dealer' = isVerifiedDealer ? 'dealer' : 'customer';
+
+    // 2. Validate Products, Pricing & Stock
+    const authoritativeProducts = getAuthoritativeProducts();
     const verifiedItems: any[] = [];
     let subtotal = 0;
 
@@ -57,13 +97,13 @@ export async function POST(request: Request) {
       const approvedQty = Math.min(requestedQty, verifiedStock);
 
       if (requestedQty > verifiedStock) {
-        errors.push(
-          `Requested quantity (${requestedQty}) for "${product.name}" exceeds available inventory (${verifiedStock}). Clamped to ${approvedQty}.`
+        warnings.push(
+          `Requested quantity (${requestedQty}) for "${product.name}" exceeds warehouse inventory (${verifiedStock}). Clamped to ${approvedQty}.`
         );
       }
 
       // Authoritative pricing: strictly enforce server price
-      const verifiedUnitPrice = userRole === 'dealer' ? product.dealerPrice : product.retailPrice;
+      const verifiedUnitPrice = effectiveRole === 'dealer' ? product.dealerPrice : product.retailPrice;
       const lineTotal = verifiedUnitPrice * approvedQty;
 
       subtotal += lineTotal;
@@ -82,10 +122,10 @@ export async function POST(request: Request) {
     }
 
     if (errors.length > 0 && verifiedItems.length === 0) {
-      return NextResponse.json({ valid: false, errors }, { status: 422 });
+      return NextResponse.json({ valid: false, errors, warnings }, { status: 422 });
     }
 
-    // Server-side calculation of promo discount
+    // 3. Server-side Calculation of Promo Discount & Taxes
     let discount = 0;
     const cleanPromo = (promoCode || '').toString().trim().toUpperCase();
     if (cleanPromo === 'PURE10') {
@@ -100,8 +140,11 @@ export async function POST(request: Request) {
     const totalAmount = discountedBase + tax + deliveryFee;
 
     return NextResponse.json({
-      valid: errors.length === 0,
-      warnings: errors,
+      valid: true,
+      effectiveRole,
+      isVerifiedDealer,
+      errors: errors.length > 0 ? errors : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
       verifiedSummary: {
         items: verifiedItems,
         subtotal,
@@ -109,12 +152,15 @@ export async function POST(request: Request) {
         tax,
         deliveryFee,
         totalAmount,
-        promoCode: cleanPromo,
+        itemCount: verifiedItems.reduce((acc, i) => acc + i.quantity, 0),
+        currency: 'INR',
+        validatedAt: new Date().toISOString(),
       },
     });
-  } catch (err: any) {
+  } catch (error: any) {
+    console.error('[Server Validate Error]:', error);
     return NextResponse.json(
-      { valid: false, errors: [err.message || 'Server validation error'] },
+      { valid: false, errors: ['Failed to validate cart with server: ' + error.message] },
       { status: 500 }
     );
   }

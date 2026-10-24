@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product } from '../types';
 import { Storage } from '../lib/storage';
+import { useAuth } from './auth-context';
 
 export interface CartItem {
   product: Product;
@@ -12,10 +13,13 @@ interface CartContextType {
   wishlist: Product[];
   addToCart: (product: Product, quantity?: number) => { success: boolean; message: string };
   updateQuantity: (productId: string, quantity: number) => { success: boolean; message?: string };
+  setBulkQuantity: (productId: string, quantity: number) => { success: boolean; message?: string };
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
   toggleWishlist: (product: Product) => void;
   isInWishlist: (productId: string) => boolean;
+  getItemUnitPrice: (product: Product) => number;
+  isDealerPricing: boolean;
   subtotal: number;
   discount: number;
   estimatedTax: number;
@@ -31,6 +35,7 @@ interface CartContextType {
 const CartContext = createContext<CartContextType>({} as CartContextType);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
+  const { isDealer } = useAuth();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<Product[]>([]);
   const [promoCode, setPromoCode] = useState<string>('');
@@ -75,6 +80,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (!isInitialized) return;
     Storage.setItem('calinfco_promo', { code: promoCode, percent: discountPercent });
   }, [promoCode, discountPercent, isInitialized]);
+
+  const getItemUnitPrice = (product: Product) => {
+    return isDealer ? product.dealerPrice : product.retailPrice;
+  };
 
   const addToCart = (product: Product, quantityToAdd: number = 1) => {
     if (product.stock <= 0) {
@@ -133,6 +142,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return { success: true, message: warning };
   };
 
+  const setBulkQuantity = (productId: string, bulkQty: number) => {
+    return updateQuantity(productId, bulkQty);
+  };
+
   const removeFromCart = (productId: string) => {
     setCart(prev => prev.filter(item => item.product.id !== productId));
   };
@@ -176,11 +189,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setDiscountPercent(0);
   };
 
-  // Calculations
-  const subtotal = cart.reduce(
-    (sum, item) => sum + item.product.retailPrice * item.quantity,
-    0
-  );
+  // Authoritative dynamic calculations:
+  // Approved dealers receive wholesale dealerPrice; retail customers and pending dealers receive retailPrice.
+  const subtotal = cart.reduce((sum, item) => {
+    const unitPrice = isDealer ? item.product.dealerPrice : item.product.retailPrice;
+    return sum + unitPrice * item.quantity;
+  }, 0);
+
   const discount = Math.round(subtotal * (discountPercent / 100));
   const estimatedTax = Math.round((subtotal - discount) * 0.18); // 18% GST
   const deliveryFee = subtotal > 500 || subtotal === 0 ? 0 : 99;
@@ -194,10 +209,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         wishlist,
         addToCart,
         updateQuantity,
+        setBulkQuantity,
         removeFromCart,
         clearCart,
         toggleWishlist,
         isInWishlist,
+        getItemUnitPrice,
+        isDealerPricing: isDealer,
         subtotal,
         discount,
         estimatedTax,

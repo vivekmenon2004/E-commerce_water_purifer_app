@@ -64,13 +64,14 @@ export const CheckoutService = {
   async validateCartItems(
     items: { productId: string; sku: string; quantity: number }[],
     promoCode?: string,
-    userRole: 'customer' | 'dealer' = 'customer'
+    userRole: 'customer' | 'dealer' = 'customer',
+    customerId?: string
   ): Promise<ValidationResult> {
     try {
       const res = await fetch(`${API_BASE}/api/checkout/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items, promoCode, userRole }),
+        body: JSON.stringify({ items, promoCode, userRole, customerId }),
       });
 
       if (res.ok) {
