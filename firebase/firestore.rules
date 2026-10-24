@@ -2,7 +2,10 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // ==========================================
+    // HELPER FUNCTIONS & ROLE CHECKS
+    // ==========================================
+
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -11,71 +14,166 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
     function isAdmin() {
       return isAuthenticated() && (
         request.auth.token.admin == true ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().role == 'admin')
       );
     }
 
     function isTechnician() {
       return isAuthenticated() && (
         request.auth.token.technician == true ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'technician'
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().role == 'technician')
       );
     }
 
-    // User profiles
+    function isDealer() {
+      return isAuthenticated() && (
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        getUserData().role == 'dealer' && 
+        getUserData().dealerStatus == 'approved'
+      );
+    }
+
+    // ==========================================
+    // 1. USERS & PROFILES (Strict Zero Escalation)
+    // ==========================================
     match /users/{userId} {
+      // Owner, Admin, or Technician assigned can read profile
       allow read: if isAuthenticated() && (isOwner(userId) || isAdmin() || isTechnician());
-      allow create: if isAuthenticated() && isOwner(userId);
-      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin());
+
+      // Customers can only create their initial profile with role == 'customer'
+      // Strictly prevent self-assignment of 'admin' or 'dealer'
+      allow create: if isAuthenticated() && isOwner(userId) &&
+        request.resource.data.role == 'customer' &&
+        (request.resource.data.dealerStatus == 'none' || request.resource.data.dealerStatus == 'pending');
+
+      // Profile updates:
+      // Admins have full update rights.
+      // Owners can only edit allowed profile fields and apply for dealer ('pending').
+      // Owners CANNOT alter their role or self-approve dealer status ('approved').
+      allow update: if isAdmin() || (
+        isOwner(userId) &&
+        // Role cannot be modified by user
+        request.resource.data.role == resource.data.role &&
+        // Dealer status can only change to 'pending' upon application, never 'approved'
+        (
+          request.resource.data.dealerStatus == resource.data.dealerStatus ||
+          (resource.data.dealerStatus in ['none', 'rejected'] && request.resource.data.dealerStatus == 'pending')
+        ) &&
+        // Permitted profile fields whitelist
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name', 'phone', 'addresses', 'dealerDetails', 'dealerStatus', 'updatedAt', 'referralCode', 'referredBy'
+        ])
+      );
+
+      // Only administrators can delete a user document
       allow delete: if isAdmin();
     }
 
-    // Water Purifiers & Filter Catalog (Public read, Admin manage)
+    // ==========================================
+    // 2. PRODUCT CATALOG (Public Read, Admin Write)
+    // ==========================================
     match /products/{productId} {
+      // Catalog is publicly readable by all clients
       allow read: if true;
+      // Only administrators can create, modify, or delete products
       allow write: if isAdmin();
     }
 
-    // Customer Orders
+    // ==========================================
+    // 3. ORDERS (Zero Price Spoofing, Protected Status)
+    // ==========================================
     match /orders/{orderId} {
-      allow read: if isAuthenticated() && (resource.data.customerId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && request.resource.data.customerId == request.auth.uid;
-      allow update: if isAdmin() || (isAuthenticated() && resource.data.customerId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cancellationReason', 'orderStatus']));
+      // Customer owner and Admins can view orders
+      allow read: if isAuthenticated() && (
+        resource.data.customerId == request.auth.uid || 
+        isAdmin()
+      );
+
+      // Customer can only create orders for themselves with initial status 'placed'
+      allow create: if isAuthenticated() && 
+        request.resource.data.customerId == request.auth.uid &&
+        request.resource.data.orderStatus == 'placed';
+
+      // Updates:
+      // Admins can update status, tracking, and assignments.
+      // Customer can ONLY cancel the order if it is still placed/confirmed.
+      // Customer cannot tamper with items, pricing, or mark as completed.
+      allow update: if isAdmin() || (
+        isAuthenticated() && 
+        resource.data.customerId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus', 'cancellationReason', 'updatedAt']) &&
+        request.resource.data.orderStatus == 'cancelled' &&
+        resource.data.orderStatus in ['placed', 'confirmed']
+      );
+
       allow delete: if isAdmin();
     }
 
-    // Installation & Purifier Service Requests
+    // ==========================================
+    // 4. SERVICE REQUESTS (Installation & Repairs)
+    // ==========================================
     match /serviceRequests/{requestId} {
       allow read: if isAuthenticated() && (
         resource.data.customerId == request.auth.uid || 
         resource.data.technicianId == request.auth.uid || 
         isAdmin()
       );
-      allow create: if isAuthenticated() && request.resource.data.customerId == request.auth.uid;
-      allow update: if isAdmin() || isTechnician() || (isAuthenticated() && resource.data.customerId == request.auth.uid);
+
+      allow create: if isAuthenticated() && 
+        request.resource.data.customerId == request.auth.uid;
+
+      allow update: if isAdmin() || (
+        // Assigned technician updating status / water TDS readings
+        isTechnician() && 
+        resource.data.technicianId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'tdsReadingBeforePpm', 'tdsReadingAfterPpm', 'resolutionNotes', 'updatedAt'
+        ])
+      ) || (
+        // Customer rescheduling or cancelling
+        isAuthenticated() && 
+        resource.data.customerId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'scheduledSlot', 'status', 'resolutionNotes', 'updatedAt'
+        ])
+      );
+
       allow delete: if isAdmin();
     }
 
-    // AMC (Annual Maintenance Contract) Subscriptions
+    // ==========================================
+    // 5. REFERRALS
+    // ==========================================
+    match /referrals/{referralId} {
+      allow read: if isAuthenticated() && (
+        resource.data.referrerId == request.auth.uid || 
+        resource.data.refereeId == request.auth.uid || 
+        isAdmin()
+      );
+
+      allow create: if isAuthenticated() && (
+        request.resource.data.referrerId == request.auth.uid || 
+        request.resource.data.refereeId == request.auth.uid
+      );
+
+      allow update, delete: if isAdmin();
+    }
+
+    // ==========================================
+    // 6. AMC SUBSCRIPTIONS
+    // ==========================================
     match /amcSubscriptions/{subscriptionId} {
-      allow read: if isAuthenticated() && (resource.data.customerId == request.auth.uid || isAdmin());
-      allow create, update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    // Customer Water Quality / TDS Readings
-    match /waterQualityLogs/{logId} {
-      allow read: if isAuthenticated() && (resource.data.customerId == request.auth.uid || isAdmin() || isTechnician());
-      allow create: if isAuthenticated() && request.resource.data.customerId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && (resource.data.customerId == request.auth.uid || isAdmin());
-    }
-
-    // Technician Directory & Roster
-    match /technicians/{techId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (
+        resource.data.customerId == request.auth.uid || 
+        isAdmin()
+      );
       allow write: if isAdmin();
     }
   }

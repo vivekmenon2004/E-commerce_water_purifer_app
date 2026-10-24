@@ -9,8 +9,9 @@ export const metadata: Metadata = {
 
 const navigation = [
   { name: "Overview", href: "/", icon: "📊" },
-  { name: "Purifier Catalog", href: "/purifiers", icon: "🚰" },
+  { name: "Catalog (65 Products)", href: "/purifiers", icon: "🚰" },
   { name: "Orders & Installations", href: "/orders", icon: "📦" },
+  { name: "Dealer Approvals", href: "/dealers", icon: "🏢" },
   { name: "Service & Maintenance", href: "/services", icon: "🔧" },
   { name: "Customers & AMC", href: "/customers", icon: "👥" },
 ];

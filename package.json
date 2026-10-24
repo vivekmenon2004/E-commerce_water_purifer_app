@@ -10,7 +10,10 @@
     "dev:mobile": "npm --prefix apps/mobile start",
     "build:admin": "npm --prefix apps/admin run build",
     "lint:admin": "npm --prefix apps/admin run lint",
-    "lint:mobile": "npm --prefix apps/mobile run lint"
+    "lint:mobile": "npm --prefix apps/mobile run lint",
+    "seed": "node scripts/seed-firestore.mjs",
+    "seed:dry-run": "node scripts/seed-firestore.mjs --dry-run",
+    "test:milestone": "node tests/verify-milestone.mjs"
   },
   "keywords": [
     "water-purifier",

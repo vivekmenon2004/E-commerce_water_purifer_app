@@ -1,102 +1,142 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
+import { db, isDemoMode, INITIAL_DEMO_ORDERS } from "@/lib/firebase";
+import { Order } from "@/lib/types";
+
 export default function OrdersPage() {
-  const orders = [
-    {
-      id: "ORD-9482",
-      customer: "Rajesh Sharma",
-      phone: "+91 98765 12345",
-      address: "Flat 402, Green Glen Layout, Bellandur, Bangalore - 560103",
-      item: "AquaShield Pro 10X (RO+UV+UF+Alkaline)",
-      amount: "₹18,999",
-      payment: "Prepaid (UPI)",
-      date: "23 Oct 2026, 14:30",
-      status: "Scheduled for Installation",
-      technician: "Amit K. (+91 98111 22334)",
-    },
-    {
-      id: "ORD-9481",
-      customer: "Pooja Varma",
-      phone: "+91 97123 45678",
-      address: "Villa 18, Palm Meadows, Whitefield, Bangalore - 560066",
-      item: "HydroPure Under-Sink RO System",
-      amount: "₹15,499",
-      payment: "Prepaid (Card)",
-      date: "23 Oct 2026, 11:15",
-      status: "Installed & Handed Over",
-      technician: "Suresh P. (+91 98222 33445)",
-    },
-    {
-      id: "ORD-9480",
-      customer: "Vikram Malhotra",
-      phone: "+91 99887 66554",
-      address: "House 54, Indiranagar 100ft Road, Bangalore - 560038",
-      item: "Annual Comprehensive AMC Plan",
-      amount: "₹3,999",
-      payment: "Prepaid (UPI)",
-      date: "22 Oct 2026",
-      status: "Active AMC",
-      technician: "Direct Activation",
-    },
-    {
-      id: "ORD-9479",
-      customer: "Dr. Ananya Iyer",
-      phone: "+91 96543 21098",
-      address: "Apartment 12B, Prestige Shantiniketan, Bangalore - 560048",
-      item: "EcoMineral RO+UV Smart Controller",
-      amount: "₹12,999",
-      payment: "Cash on Delivery",
-      date: "22 Oct 2026",
-      status: "Out for Delivery",
-      technician: "Deepak S. (+91 98333 44556)",
-    },
-  ];
+  const [orders, setOrders] = useState<Order[]>(INITIAL_DEMO_ORDERS);
+
+  useEffect(() => {
+    async function loadOrders() {
+      if (isDemoMode || !db) return;
+      try {
+        const snap = await getDocs(collection(db, "orders"));
+        if (!snap.empty) {
+          const list: Order[] = [];
+          snap.forEach(d => list.push({ id: d.id, ...d.data() } as Order));
+          setOrders(list);
+        }
+      } catch (err) {
+        console.warn("Using demo orders in admin:", err);
+      }
+    }
+    loadOrders();
+  }, []);
+
+  const handleUpdateStatus = async (orderId: string, newStatus: Order["orderStatus"]) => {
+    if (isDemoMode || !db) {
+      setOrders(prev =>
+        prev.map(o => (o.id === orderId ? { ...o, orderStatus: newStatus } : o))
+      );
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, "orders", orderId), {
+        orderStatus: newStatus,
+        updatedAt: new Date().toISOString(),
+      });
+      setOrders(prev =>
+        prev.map(o => (o.id === orderId ? { ...o, orderStatus: newStatus } : o))
+      );
+    } catch (err: any) {
+      alert("Error updating order status: " + err.message);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800 pb-5">
         <div>
-          <h2 className="text-2xl font-bold text-white tracking-tight">Customer Orders & Deliveries</h2>
+          <h2 className="text-2xl font-black text-white tracking-wide">
+            📦 Orders & Installation Dispatch
+          </h2>
           <p className="text-sm text-slate-400 mt-1">
-            Track customer purchases, doorstep shipment status, and technician installation schedules.
+            Real-time orders with buyer tier identification (Customer vs Authorized Dealer)
           </p>
+        </div>
+
+        <div className="text-xs px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">
+          Total Orders: <span className="font-bold text-cyan-400">{orders.length}</span>
         </div>
       </div>
 
-      <div className="rounded-xl bg-slate-900 border border-slate-800 overflow-hidden">
+      <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-950/60 text-slate-400 uppercase font-semibold border-b border-slate-800">
+            <thead className="bg-slate-950/80 text-slate-400 uppercase font-semibold border-b border-slate-800">
               <tr>
-                <th className="px-5 py-3.5">Order</th>
-                <th className="px-5 py-3.5">Customer & Phone</th>
-                <th className="px-5 py-3.5">Delivery Address</th>
-                <th className="px-5 py-3.5">Product</th>
-                <th className="px-5 py-3.5">Amount & Mode</th>
-                <th className="px-5 py-3.5">Status</th>
-                <th className="px-5 py-3.5">Assigned Technician</th>
+                <th className="py-3.5 px-4">Order ID & Date</th>
+                <th className="py-3.5 px-4">Customer / Partner</th>
+                <th className="py-3.5 px-4">Buyer Tier</th>
+                <th className="py-3.5 px-4">Ordered Items</th>
+                <th className="py-3.5 px-4">Total Amount</th>
+                <th className="py-3.5 px-4">Payment</th>
+                <th className="py-3.5 px-4">Order Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {orders.map((o) => (
-                <tr key={o.id} className="hover:bg-slate-800/40 transition-colors">
-                  <td className="px-5 py-4 font-mono font-semibold text-cyan-400">{o.id}</td>
-                  <td className="px-5 py-4">
-                    <div className="font-medium text-white">{o.customer}</div>
-                    <div className="text-slate-400 text-[11px] font-mono">{o.phone}</div>
-                  </td>
-                  <td className="px-5 py-4 text-slate-300 max-w-xs truncate">{o.address}</td>
-                  <td className="px-5 py-4 font-medium text-slate-200">{o.item}</td>
-                  <td className="px-5 py-4">
-                    <div className="font-bold text-white">{o.amount}</div>
-                    <div className="text-slate-400 text-[11px]">{o.payment}</div>
-                  </td>
-                  <td className="px-5 py-4">
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                      {o.status}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4 text-slate-300">{o.technician}</td>
-                </tr>
-              ))}
+            <tbody className="divide-y divide-slate-800/60 text-slate-300">
+              {orders.map(o => {
+                const isDealer = o.userRoleAtPurchase === "dealer";
+
+                return (
+                  <tr key={o.id} className="hover:bg-slate-800/40 transition-colors">
+                    <td className="py-3.5 px-4 font-mono">
+                      <p className="font-bold text-slate-100">{o.id}</p>
+                      <span className="text-[10px] text-slate-400">{new Date(o.createdAt).toLocaleDateString()}</span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <p className="font-bold text-slate-100">{o.customerName}</p>
+                      <span className="text-[11px] text-slate-400">{o.customerEmail}</span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                          isDealer
+                            ? "bg-sky-500/10 text-sky-400 border border-sky-500/30"
+                            : "bg-slate-800 text-slate-300 border border-slate-700/60"
+                        }`}
+                      >
+                        {isDealer ? "Wholesale Dealer" : "Retail Customer"}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="space-y-1">
+                        {o.items.map((it, idx) => (
+                          <div key={idx} className="text-[11px]">
+                            <span className="font-semibold text-slate-200">{it.name}</span>
+                            <span className="text-slate-400"> × {it.quantity} (₹{it.unitPrice.toLocaleString("en-IN")})</span>
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4 font-mono font-bold text-cyan-300">
+                      ₹{o.totalAmount.toLocaleString("en-IN")}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className="block font-semibold uppercase text-slate-200">{o.paymentMethod}</span>
+                      <span className={`text-[10px] font-bold ${o.paymentStatus === "paid" ? "text-emerald-400" : "text-amber-400"}`}>
+                        {o.paymentStatus.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <select
+                        value={o.orderStatus}
+                        onChange={e => handleUpdateStatus(o.id, e.target.value as Order["orderStatus"])}
+                        className="bg-slate-950 border border-slate-700 text-slate-200 rounded px-2 py-1 text-xs font-semibold focus:outline-none focus:border-cyan-500"
+                      >
+                        <option value="placed">Placed</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="dispatched">Dispatched</option>
+                        <option value="installed">Installed</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
