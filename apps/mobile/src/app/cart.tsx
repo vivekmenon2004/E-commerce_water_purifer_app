@@ -50,15 +50,7 @@ export default function CartScreen() {
 
   const handleCheckout = () => {
     if (cart.length === 0) return;
-    setIsCheckingOut(true);
-
-    // Simulate instant checkout / order placement
-    setTimeout(() => {
-      const orderId = `ORD-${Date.now().toString().slice(-6)}`;
-      setOrderPlaced(orderId);
-      clearCart();
-      setIsCheckingOut(false);
-    }, 1200);
+    router.push('/checkout' as any);
   };
 
   if (orderPlaced) {

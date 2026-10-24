@@ -9,7 +9,7 @@ import {
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 import { auth, db, isDemoMode, DEMO_PROFILES } from '../lib/firebase';
-import { UserProfile, DealerDetails } from '../types';
+import { UserProfile, DealerDetails, UserAddress } from '../types';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -20,6 +20,11 @@ interface AuthContextType {
   signIn: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   signUpCustomer: (name: string, email: string, phone: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   applyForDealer: (details: Omit<DealerDetails, 'requestedAt'>) => Promise<{ success: boolean; error?: string }>;
+  updateProfile: (name: string, phone: string) => Promise<{ success: boolean; error?: string }>;
+  addAddress: (address: Omit<UserAddress, 'id'>) => Promise<{ success: boolean; address?: UserAddress; error?: string }>;
+  updateAddress: (addressId: string, address: Partial<UserAddress>) => Promise<{ success: boolean; error?: string }>;
+  deleteAddress: (addressId: string) => Promise<{ success: boolean; error?: string }>;
+  setDefaultAddress: (addressId: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   switchDemoPersona: (personaKey: 'customer' | 'pendingDealer' | 'approvedDealer') => void;
 }
@@ -186,6 +191,143 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateProfile = async (name: string, phone: string) => {
+    if (!user) return { success: false, error: 'User not signed in' };
+
+    const updatedUser: UserProfile = {
+      ...user,
+      name,
+      phone,
+      updatedAt: new Date().toISOString(),
+    };
+    setUser(updatedUser);
+
+    if (!isDemoMode && db) {
+      try {
+        const userRef = doc(db as any, 'users', user.id);
+        await updateDoc(userRef, {
+          name,
+          phone,
+          updatedAt: new Date().toISOString(),
+        });
+      } catch (err: any) {
+        console.warn('[AuthContext] Firestore updateProfile failed:', err);
+      }
+    }
+
+    return { success: true };
+  };
+
+  const addAddress = async (addressData: Omit<UserAddress, 'id'>) => {
+    if (!user) return { success: false, error: 'User not signed in' };
+
+    const newId = `addr_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    const isFirst = (user.addresses || []).length === 0;
+    const isDefault = addressData.isDefault || isFirst;
+
+    const newAddress: UserAddress = {
+      ...addressData,
+      id: newId,
+      isDefault,
+    };
+
+    const updatedAddresses = (user.addresses || []).map(a =>
+      isDefault ? { ...a, isDefault: false } : a
+    );
+    updatedAddresses.push(newAddress);
+
+    const updatedUser: UserProfile = {
+      ...user,
+      addresses: updatedAddresses,
+      updatedAt: new Date().toISOString(),
+    };
+    setUser(updatedUser);
+
+    if (!isDemoMode && db) {
+      try {
+        const userRef = doc(db as any, 'users', user.id);
+        await updateDoc(userRef, {
+          addresses: updatedAddresses,
+          updatedAt: new Date().toISOString(),
+        });
+      } catch (err: any) {
+        console.warn('[AuthContext] Firestore addAddress failed:', err);
+      }
+    }
+
+    return { success: true, address: newAddress };
+  };
+
+  const updateAddress = async (addressId: string, updates: Partial<UserAddress>) => {
+    if (!user) return { success: false, error: 'User not signed in' };
+
+    const updatedAddresses = (user.addresses || []).map(addr => {
+      if (addr.id === addressId) {
+        return { ...addr, ...updates };
+      }
+      if (updates.isDefault) {
+        return { ...addr, isDefault: false };
+      }
+      return addr;
+    });
+
+    const updatedUser: UserProfile = {
+      ...user,
+      addresses: updatedAddresses,
+      updatedAt: new Date().toISOString(),
+    };
+    setUser(updatedUser);
+
+    if (!isDemoMode && db) {
+      try {
+        const userRef = doc(db as any, 'users', user.id);
+        await updateDoc(userRef, {
+          addresses: updatedAddresses,
+          updatedAt: new Date().toISOString(),
+        });
+      } catch (err: any) {
+        console.warn('[AuthContext] Firestore updateAddress failed:', err);
+      }
+    }
+
+    return { success: true };
+  };
+
+  const deleteAddress = async (addressId: string) => {
+    if (!user) return { success: false, error: 'User not signed in' };
+
+    let updatedAddresses = (user.addresses || []).filter(a => a.id !== addressId);
+    // If deleted address was default, set first remaining as default
+    if (updatedAddresses.length > 0 && !updatedAddresses.some(a => a.isDefault)) {
+      updatedAddresses[0].isDefault = true;
+    }
+
+    const updatedUser: UserProfile = {
+      ...user,
+      addresses: updatedAddresses,
+      updatedAt: new Date().toISOString(),
+    };
+    setUser(updatedUser);
+
+    if (!isDemoMode && db) {
+      try {
+        const userRef = doc(db as any, 'users', user.id);
+        await updateDoc(userRef, {
+          addresses: updatedAddresses,
+          updatedAt: new Date().toISOString(),
+        });
+      } catch (err: any) {
+        console.warn('[AuthContext] Firestore deleteAddress failed:', err);
+      }
+    }
+
+    return { success: true };
+  };
+
+  const setDefaultAddress = async (addressId: string) => {
+    return updateAddress(addressId, { isDefault: true });
+  };
+
   const signOut = async () => {
     if (isDemoMode) {
       setUser(null);
@@ -215,6 +357,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signUpCustomer,
         applyForDealer,
+        updateProfile,
+        addAddress,
+        updateAddress,
+        deleteAddress,
+        setDefaultAddress,
         signOut,
         switchDemoPersona,
       }}>

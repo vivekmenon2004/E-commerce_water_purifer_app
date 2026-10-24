@@ -23,13 +23,18 @@ export interface DealerDetails {
 
 export interface UserAddress {
   id: string;
+  label?: 'Home' | 'Office' | 'Other' | string;
+  recipientName?: string;
   street: string;
+  area?: string;
   city: string;
   state: string;
   postalCode: string;
   landmark?: string;
   phone?: string;
   isDefault: boolean;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface UserProfile {
@@ -101,14 +106,24 @@ export interface Order {
   subtotal: number;
   discount: number;
   tax: number;
+  deliveryFee?: number;
   totalAmount: number;
-  paymentMethod: 'upi' | 'card' | 'cod' | 'dealer_credit';
+  paymentMethod: 'upi' | 'card' | 'cod' | 'dealer_credit' | 'razorpay';
   paymentStatus: 'paid' | 'pending' | 'failed';
   orderStatus: 'placed' | 'confirmed' | 'dispatched' | 'installed' | 'cancelled';
   shippingAddress: UserAddress;
+  idempotencyKey?: string;
+  paymentDetails?: {
+    razorpayOrderId?: string;
+    razorpayPaymentId?: string;
+    signature?: string;
+    isMock?: boolean;
+    paidAt?: string;
+  };
   cancellationReason?: string;
   installationScheduledDate?: string;
   assignedTechnicianId?: string;
+  deliveryNotes?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -132,7 +147,9 @@ export interface ServiceRequest {
   customerId: string;
   customerName: string;
   customerPhone: string;
+  alternatePhone?: string;
   customerAddress: string;
+  addressDetails?: UserAddress;
   orderId?: string;
   requestType: ServiceRequestType;
   status: ServiceRequestStatus;
@@ -140,6 +157,9 @@ export interface ServiceRequest {
   technicianId?: string;
   technicianName?: string;
   scheduledSlot: string;
+  preferredDate?: string;
+  purifierModel?: string;
+  issueDescription?: string;
   tdsReadingBeforePpm?: number;
   tdsReadingAfterPpm?: number;
   resolutionNotes?: string;

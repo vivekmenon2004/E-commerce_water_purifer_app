@@ -332,6 +332,22 @@ export default function AccountScreen() {
                 <View style={styles.hubLinksGrid}>
                   <TouchableOpacity
                     style={styles.hubLink}
+                    onPress={() => router.push('/orders' as any)}>
+                    <Text style={styles.hubLinkIcon}>📦</Text>
+                    <Text style={styles.hubLinkText}>My Orders</Text>
+                    <Text style={styles.hubLinkSub}>Track & details</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.hubLink}
+                    onPress={() => router.push('/profile' as any)}>
+                    <Text style={styles.hubLinkIcon}>📍</Text>
+                    <Text style={styles.hubLinkText}>Addresses & Info</Text>
+                    <Text style={styles.hubLinkSub}>OSM Map Pin</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.hubLink}
                     onPress={() => router.push('/cart' as any)}>
                     <Text style={styles.hubLinkIcon}>🛒</Text>
                     <Text style={styles.hubLinkText}>Shopping Cart</Text>
@@ -348,45 +364,41 @@ export default function AccountScreen() {
 
                   <TouchableOpacity
                     style={styles.hubLink}
-                    onPress={() => router.push('/explore' as any)}>
-                    <Text style={styles.hubLinkIcon}>🚰</Text>
-                    <Text style={styles.hubLinkText}>Product Catalog</Text>
-                    <Text style={styles.hubLinkSub}>65+ hardware items</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.hubLink}
                     onPress={() => router.push('/services' as any)}>
                     <Text style={styles.hubLinkIcon}>🔧</Text>
                     <Text style={styles.hubLinkText}>Service & TDS</Text>
                     <Text style={styles.hubLinkSub}>Book installation</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.hubLink}
+                    onPress={() => router.push('/explore' as any)}>
+                    <Text style={styles.hubLinkIcon}>🚰</Text>
+                    <Text style={styles.hubLinkText}>Product Catalog</Text>
+                    <Text style={styles.hubLinkSub}>65+ hardware items</Text>
                   </TouchableOpacity>
                 </View>
               </View>
 
               {/* Customer Recent Orders */}
               <View style={styles.ordersCard}>
-                <Text style={styles.hubTitle}>Recent Orders & Installations</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={styles.hubTitle}>Recent Orders & Installations</Text>
+                  <TouchableOpacity onPress={() => router.push('/orders' as any)}>
+                    <Text style={{ color: '#38bdf8', fontSize: 11, fontWeight: '700' }}>View All →</Text>
+                  </TouchableOpacity>
+                </View>
                 
-                <View style={styles.orderSnippet}>
+                <TouchableOpacity
+                  style={styles.orderSnippet}
+                  onPress={() => router.push('/orders' as any)}>
                   <View style={styles.orderTopRow}>
-                    <Text style={styles.orderId}>ORD-9482</Text>
-                    <Text style={styles.orderStatusBadge}>Installation Scheduled</Text>
+                    <Text style={styles.orderId}>View Live Orders in Firestore</Text>
+                    <Text style={styles.orderStatusBadge}>Active Tracking</Text>
                   </View>
-                  <Text style={styles.orderItemName}>AquaShield Pro 10X (RO+UV+UF+Alkaline)</Text>
-                  <Text style={styles.orderDate}>Scheduled Date: 26 Oct 2026 • Doorstep Service</Text>
-                </View>
-
-                <View style={styles.orderSnippet}>
-                  <View style={styles.orderTopRow}>
-                    <Text style={styles.orderId}>ORD-9410</Text>
-                    <Text style={[styles.orderStatusBadge, { color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.4)' }]}>
-                      Delivered
-                    </Text>
-                  </View>
-                  <Text style={styles.orderItemName}>Annual Complete Filter Replacement Kit</Text>
-                  <Text style={styles.orderDate}>Delivered on 14 Aug 2026</Text>
-                </View>
+                  <Text style={styles.orderItemName}>Open complete order history & technician dispatch status</Text>
+                  <Text style={styles.orderDate}>Tap to view invoice, delivery address, and status timeline →</Text>
+                </TouchableOpacity>
               </View>
 
               {/* Sign Out Button */}
