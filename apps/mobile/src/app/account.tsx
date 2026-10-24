@@ -10,6 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -324,6 +325,70 @@ export default function AccountScreen() {
                 </View>
               )}
 
+              {/* Customer Account Navigation Hub */}
+              <View style={styles.hubCard}>
+                <Text style={styles.hubTitle}>Shopping & Customer Services</Text>
+                
+                <View style={styles.hubLinksGrid}>
+                  <TouchableOpacity
+                    style={styles.hubLink}
+                    onPress={() => router.push('/cart' as any)}>
+                    <Text style={styles.hubLinkIcon}>🛒</Text>
+                    <Text style={styles.hubLinkText}>Shopping Cart</Text>
+                    <Text style={styles.hubLinkSub}>View active items</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.hubLink}
+                    onPress={() => router.push('/wishlist' as any)}>
+                    <Text style={styles.hubLinkIcon}>💖</Text>
+                    <Text style={styles.hubLinkText}>My Wishlist</Text>
+                    <Text style={styles.hubLinkSub}>Saved purifiers</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.hubLink}
+                    onPress={() => router.push('/explore' as any)}>
+                    <Text style={styles.hubLinkIcon}>🚰</Text>
+                    <Text style={styles.hubLinkText}>Product Catalog</Text>
+                    <Text style={styles.hubLinkSub}>65+ hardware items</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.hubLink}
+                    onPress={() => router.push('/services' as any)}>
+                    <Text style={styles.hubLinkIcon}>🔧</Text>
+                    <Text style={styles.hubLinkText}>Service & TDS</Text>
+                    <Text style={styles.hubLinkSub}>Book installation</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Customer Recent Orders */}
+              <View style={styles.ordersCard}>
+                <Text style={styles.hubTitle}>Recent Orders & Installations</Text>
+                
+                <View style={styles.orderSnippet}>
+                  <View style={styles.orderTopRow}>
+                    <Text style={styles.orderId}>ORD-9482</Text>
+                    <Text style={styles.orderStatusBadge}>Installation Scheduled</Text>
+                  </View>
+                  <Text style={styles.orderItemName}>AquaShield Pro 10X (RO+UV+UF+Alkaline)</Text>
+                  <Text style={styles.orderDate}>Scheduled Date: 26 Oct 2026 • Doorstep Service</Text>
+                </View>
+
+                <View style={styles.orderSnippet}>
+                  <View style={styles.orderTopRow}>
+                    <Text style={styles.orderId}>ORD-9410</Text>
+                    <Text style={[styles.orderStatusBadge, { color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.4)' }]}>
+                      Delivered
+                    </Text>
+                  </View>
+                  <Text style={styles.orderItemName}>Annual Complete Filter Replacement Kit</Text>
+                  <Text style={styles.orderDate}>Delivered on 14 Aug 2026</Text>
+                </View>
+              </View>
+
               {/* Sign Out Button */}
               <TouchableOpacity style={styles.signOutBtn} onPress={signOut}>
                 <Text style={styles.signOutBtnText}>Sign Out</Text>
@@ -579,4 +644,58 @@ const styles = StyleSheet.create({
   primaryAuthBtn: { backgroundColor: '#0284c7', borderRadius: Radius.md, paddingVertical: 12, alignItems: 'center', marginTop: Spacing.lg },
   primaryAuthBtnText: { color: '#ffffff', fontSize: 14, fontWeight: '700' },
   dealerNote: { color: '#94a3b8', fontSize: 11, marginTop: Spacing.md, textAlign: 'center', lineHeight: 16 },
+
+  // Customer Hub Styles
+  hubCard: {
+    backgroundColor: '#1e293b',
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  hubTitle: { color: '#ffffff', fontSize: 13, fontWeight: '800', marginBottom: 10 },
+  hubLinksGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  hubLink: {
+    width: '48%',
+    backgroundColor: '#0f172a',
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  hubLinkIcon: { fontSize: 24, marginBottom: 4 },
+  hubLinkText: { color: '#ffffff', fontSize: 12, fontWeight: '700' },
+  hubLinkSub: { color: '#94a3b8', fontSize: 10, marginTop: 2 },
+
+  // Orders Snippet Card
+  ordersCard: {
+    backgroundColor: '#1e293b',
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#334155',
+    gap: 10,
+  },
+  orderSnippet: {
+    backgroundColor: '#0f172a',
+    borderRadius: Radius.md,
+    padding: Spacing.sm,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  orderTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  orderId: { color: '#38bdf8', fontSize: 11, fontWeight: '800' },
+  orderStatusBadge: {
+    color: '#fbbf24',
+    fontSize: 10,
+    fontWeight: '700',
+    backgroundColor: 'rgba(251, 191, 36, 0.1)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.3)',
+  },
+  orderItemName: { color: '#e2e8f0', fontSize: 12, fontWeight: '700', marginTop: 4 },
+  orderDate: { color: '#94a3b8', fontSize: 10, marginTop: 2 },
 });

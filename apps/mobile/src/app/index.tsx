@@ -5,57 +5,39 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Pressable,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Colors, Spacing, Radius, BottomTabInset, MaxContentWidth } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Spacing, Radius } from '@/constants/theme';
+import { useAuth } from '@/context/auth-context';
+import { useCart } from '@/context/cart-context';
+import { SEED_PRODUCTS, PRODUCT_CATEGORIES } from '@/constants/seed-data';
 
 export default function HomeScreen() {
-  const theme = useTheme();
-  const [activeFilterTab, setActiveFilterTab] = useState<'all' | 'ro' | 'uv' | 'alkaline'>('all');
+  const { user, isDealer } = useAuth();
+  const { itemCount, wishlist, addToCart } = useCart();
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  const FEATURED_PURIFIERS = [
-    {
-      id: 'calinfco-aquashield-pro',
-      name: 'AquaShield Pro 10X',
-      tagline: '10-Stage RO + UV + UF + Copper Alkaline',
-      price: '₹18,999',
-      originalPrice: '₹24,999',
-      badge: 'Best Seller',
-      rating: '4.9 ★ (1,240+)',
-      stages: '10 Stages',
-      tank: '10L Storage',
-      suitableFor: 'TDS up to 2500 ppm',
-    },
-    {
-      id: 'calinfco-hydro-pure-compact',
-      name: 'HydroPure Under-Sink',
-      tagline: '8-Stage Compact RO + Mineral Enhancer',
-      price: '₹15,499',
-      originalPrice: '₹19,999',
-      badge: 'Modern Kitchen',
-      rating: '4.8 ★ (820+)',
-      stages: '8 Stages',
-      tank: '8L Storage',
-      suitableFor: 'Borewell & Municipal',
-    },
-    {
-      id: 'calinfco-eco-mineralizer',
-      name: 'EcoMineral RO+UV',
-      tagline: 'Smart TDS Controller with Active Carbon',
-      price: '₹12,999',
-      originalPrice: '₹16,500',
-      badge: 'Value Pick',
-      rating: '4.7 ★ (650+)',
-      stages: '7 Stages',
-      tank: '7L Storage',
-      suitableFor: 'Municipal Water',
-    },
+  // Pick top featured items
+  const featuredPurifiers = SEED_PRODUCTS.filter(p => p.category === 'water purifiers').slice(0, 4);
+  const featuredSpares = SEED_PRODUCTS.filter(p => p.category === 'filters' || p.category === 'spare parts').slice(0, 4);
+
+  const handleQuickAdd = (product: any) => {
+    const res = addToCart(product, 1);
+    setToastMsg(res.message);
+    setTimeout(() => setToastMsg(null), 2500);
+  };
+
+  const CATEGORY_CARDS = [
+    { id: 'water purifiers', title: 'Water Purifiers', icon: '🚰', desc: 'RO+UV+UF & Alkaline' },
+    { id: 'dispensers', title: 'Dispensers', icon: '🧊', desc: 'Hot, Cold & Touchless' },
+    { id: 'pumps', title: 'Booster Pumps', icon: '⚡', desc: '24V/36V High PSI Pumps' },
+    { id: 'filters', title: 'Filter Cartridges', icon: '🔬', desc: 'Membranes & Mineralizers' },
+    { id: 'spare parts', title: 'Spare Parts', icon: '🔧', desc: 'Valves, Faucets & Meters' },
   ];
 
   return (
@@ -65,168 +47,193 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}>
           
-          {/* Header */}
+          {/* Header Bar */}
           <View style={styles.header}>
             <View>
-              <ThemedText style={styles.brandTitle}>CALINFCO</ThemedText>
-              <ThemedText style={styles.brandSubtitle}>Pure Water Technologies</ThemedText>
+              <ThemedText type="subtitle" themeColor="primary" style={styles.badgeText}>
+                💧 CALINFCO PURE WATER
+              </ThemedText>
+              <ThemedText type="title" style={styles.title}>
+                {user ? `Hello, ${user.name.split(' ')[0]}` : 'Pure Living Starts Here'}
+              </ThemedText>
             </View>
-            <View style={[styles.purityBadge, { backgroundColor: theme.badgeBackground }]}>
-              <View style={[styles.statusDot, { backgroundColor: theme.tdsOptimal }]} />
-              <Text style={[styles.purityBadgeText, { color: theme.tdsOptimal }]}>
-                100% PURE
-              </Text>
+
+            {/* Quick Header Actions */}
+            <View style={styles.headerIcons}>
+              <TouchableOpacity
+                style={styles.iconBtn}
+                onPress={() => router.push('/wishlist' as any)}>
+                <Text style={styles.iconEmoji}>💖</Text>
+                {wishlist.length > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeCount}>{wishlist.length}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.iconBtn}
+                onPress={() => router.push('/cart' as any)}>
+                <Text style={styles.iconEmoji}>🛒</Text>
+                {itemCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeCount}>{itemCount}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
             </View>
           </View>
 
-          {/* Water Quality & Filter Status Dashboard Card */}
-          <View style={[styles.card, styles.purityCard, { borderColor: theme.border }]}>
-            <View style={styles.cardHeaderRow}>
-              <View>
-                <Text style={styles.purityCardOverline}>LIVE PURITY MONITOR</Text>
-                <Text style={styles.purityCardTitle}>Home Water Quality Index</Text>
-              </View>
-              <View style={[styles.statusPill, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-                <Text style={[styles.statusPillText, { color: theme.tdsOptimal }]}>PRISTINE</Text>
-              </View>
+          {/* Toast Message */}
+          {toastMsg && (
+            <View style={styles.toastBox}>
+              <Text style={styles.toastText}>✓ {toastMsg}</Text>
             </View>
+          )}
 
-            <View style={styles.metricsRow}>
-              <View style={styles.metricItem}>
-                <Text style={styles.metricValue}>78</Text>
-                <Text style={styles.metricUnit}>ppm TDS</Text>
-                <Text style={styles.metricLabel}>Safe Drinkable</Text>
-              </View>
-              <View style={styles.metricDivider} />
-              <View style={styles.metricItem}>
-                <Text style={styles.metricValue}>7.4</Text>
-                <Text style={styles.metricUnit}>pH Level</Text>
-                <Text style={styles.metricLabel}>Alkaline Rich</Text>
-              </View>
-              <View style={styles.metricDivider} />
-              <View style={styles.metricItem}>
-                <Text style={styles.metricValue}>92%</Text>
-                <Text style={styles.metricUnit}>Life Left</Text>
-                <Text style={styles.metricLabel}>RO Filter Cartridge</Text>
-              </View>
+          {/* Hero Banner */}
+          <View style={styles.heroBanner}>
+            <View style={styles.heroBadge}>
+              <Text style={styles.heroBadgeText}>AQUASHIELD 10X SERIES</Text>
             </View>
-
-            <TouchableOpacity
-              style={[styles.actionBannerButton, { backgroundColor: theme.primary }]}
-              activeOpacity={0.85}
-              onPress={() => router.push('/services')}>
-              <Text style={styles.actionBannerButtonText}>Book Free Doorstep Water TDS Test →</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Quick Services Strip */}
-          <View style={styles.sectionHeader}>
-            <ThemedText type="smallBold" style={styles.sectionTitle}>
-              Express Services & Care
+            <ThemedText type="title" style={styles.heroTitle}>
+              Pristine 10-Stage Water Purification
             </ThemedText>
-          </View>
-
-          <View style={styles.servicesGrid}>
-            <Pressable
-              style={[styles.serviceCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
-              onPress={() => router.push('/services')}>
-              <Text style={styles.serviceIcon}>💧</Text>
-              <Text style={[styles.serviceTitle, { color: theme.text }]}>Free TDS Test</Text>
-              <Text style={[styles.serviceDesc, { color: theme.textSecondary }]}>Doorstep water purity analysis</Text>
-            </Pressable>
-
-            <Pressable
-              style={[styles.serviceCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
-              onPress={() => router.push('/explore')}>
-              <Text style={styles.serviceIcon}>🔄</Text>
-              <Text style={[styles.serviceTitle, { color: theme.text }]}>Replace Filter</Text>
-              <Text style={[styles.serviceDesc, { color: theme.textSecondary }]}>Genuine sediment & carbon kits</Text>
-            </Pressable>
-
-            <Pressable
-              style={[styles.serviceCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
-              onPress={() => router.push('/services')}>
-              <Text style={styles.serviceIcon}>🛡️</Text>
-              <Text style={[styles.serviceTitle, { color: theme.text }]}>Annual AMC</Text>
-              <Text style={[styles.serviceDesc, { color: theme.textSecondary }]}>Free filter changes & warranty</Text>
-            </Pressable>
-
-            <Pressable
-              style={[styles.serviceCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
-              onPress={() => router.push('/services')}>
-              <Text style={styles.serviceIcon}>🔧</Text>
-              <Text style={[styles.serviceTitle, { color: theme.text }]}>Technician Visit</Text>
-              <Text style={[styles.serviceDesc, { color: theme.textSecondary }]}>Same-day repair & installation</Text>
-            </Pressable>
-          </View>
-
-          {/* Purifiers Catalog Section */}
-          <View style={styles.sectionHeaderWithLink}>
-            <View>
-              <ThemedText type="smallBold" style={styles.sectionTitle}>
-                Featured Water Purifiers
-              </ThemedText>
-              <ThemedText style={{ color: theme.textSecondary, fontSize: 13 }}>
-                Multi-stage purification tailored for Indian water conditions
-              </ThemedText>
+            <Text style={styles.heroDesc}>
+              Borewell and tanker water purified with Active Copper Infusion, Bio-Alkaline mineralizer, and real-time TDS optimization.
+            </Text>
+            <View style={styles.heroActionRow}>
+              <TouchableOpacity
+                style={styles.heroPrimaryBtn}
+                onPress={() => router.push('/explore' as any)}>
+                <Text style={styles.heroPrimaryBtnText}>Explore Catalog →</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.heroSecondaryBtn}
+                onPress={() => router.push('/services' as any)}>
+                <Text style={styles.heroSecondaryBtnText}>Book Water Test 🧪</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={() => router.push('/explore')}>
-              <Text style={[styles.viewAllText, { color: theme.primary }]}>View All →</Text>
+          </View>
+
+          {/* Category Navigation Grid */}
+          <View style={styles.sectionHeader}>
+            <ThemedText type="subtitle" style={styles.sectionTitle}>
+              Browse by Category
+            </ThemedText>
+            <TouchableOpacity onPress={() => router.push('/explore' as any)}>
+              <Text style={styles.seeAllText}>View All 65+ →</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Product Cards */}
-          {FEATURED_PURIFIERS.map((item) => (
-            <View
-              key={item.id}
-              style={[
-                styles.card,
-                styles.productCard,
-                { backgroundColor: theme.backgroundElement, borderColor: theme.border },
-              ]}>
-              <View style={styles.productBadgeRow}>
-                <View style={[styles.productBadge, { backgroundColor: theme.primaryMuted }]}>
-                  <Text style={[styles.productBadgeText, { color: theme.primary }]}>{item.badge}</Text>
-                </View>
-                <Text style={[styles.productRating, { color: theme.textSecondary }]}>{item.rating}</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryScroll}>
+            {CATEGORY_CARDS.map(cat => (
+              <TouchableOpacity
+                key={cat.id}
+                style={styles.categoryCard}
+                onPress={() => router.push({ pathname: '/explore', params: { category: cat.id } } as any)}>
+                <Text style={styles.categoryIcon}>{cat.icon}</Text>
+                <Text style={styles.categoryTitle}>{cat.title}</Text>
+                <Text style={styles.categorySub}>{cat.desc}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Live TDS Water Quality Checker Widget */}
+          <View style={styles.tdsWidget}>
+            <View style={styles.tdsHeader}>
+              <Text style={styles.tdsTitle}>💧 Pure Water Quality Meter</Text>
+              <View style={styles.tdsStatusPill}>
+                <Text style={styles.tdsStatusText}>Pristine (92 PPM)</Text>
               </View>
+            </View>
+            <Text style={styles.tdsBody}>
+              Ideal drinking water TDS is between 50 to 150 ppm. Need your water tested at home? Our technicians carry digital titanium probes.
+            </Text>
+            <TouchableOpacity
+              style={styles.tdsCta}
+              onPress={() => router.push('/services' as any)}>
+              <Text style={styles.tdsCtaText}>Schedule Free Doorstep Water Inspection →</Text>
+            </TouchableOpacity>
+          </View>
 
-              <Text style={[styles.productName, { color: theme.text }]}>{item.name}</Text>
-              <Text style={[styles.productTagline, { color: theme.textSecondary }]}>{item.tagline}</Text>
+          {/* Featured Purifiers Grid */}
+          <View style={styles.sectionHeader}>
+            <ThemedText type="subtitle" style={styles.sectionTitle}>
+              Featured Water Purifiers
+            </ThemedText>
+            <TouchableOpacity onPress={() => router.push('/explore' as any)}>
+              <Text style={styles.seeAllText}>More →</Text>
+            </TouchableOpacity>
+          </View>
 
-              <View style={styles.specsRow}>
-                <View style={[styles.specTag, { backgroundColor: theme.background }]}>
-                  <Text style={[styles.specTagText, { color: theme.textSecondary }]}>⚙️ {item.stages}</Text>
-                </View>
-                <View style={[styles.specTag, { backgroundColor: theme.background }]}>
-                  <Text style={[styles.specTagText, { color: theme.textSecondary }]}>🚰 {item.tank}</Text>
-                </View>
-                <View style={[styles.specTag, { backgroundColor: theme.background }]}>
-                  <Text style={[styles.specTagText, { color: theme.textSecondary }]}>⚡ {item.suitableFor}</Text>
-                </View>
-              </View>
+          <View style={styles.grid}>
+            {featuredPurifiers.map(p => {
+              const activePrice = isDealer ? p.dealerPrice : p.retailPrice;
 
-              <View style={styles.productFooter}>
-                <View>
-                  <Text style={[styles.productPrice, { color: theme.primaryDark }]}>{item.price}</Text>
-                  <Text style={[styles.productOriginalPrice, { color: theme.textMuted }]}>{item.originalPrice}</Text>
+              return (
+                <TouchableOpacity
+                  key={p.id}
+                  style={styles.card}
+                  activeOpacity={0.88}
+                  onPress={() => router.push(`/product/${p.id}` as any)}>
+                  <Image source={{ uri: p.imageUrl }} style={styles.cardImage} resizeMode="cover" />
+                  <View style={styles.cardContent}>
+                    <Text style={styles.cardSku}>{p.sku}</Text>
+                    <Text style={styles.cardTitle} numberOfLines={2}>{p.name}</Text>
+                    <Text style={styles.cardRating}>★ {p.ratingAverage} ({p.ratingCount})</Text>
+
+                    <View style={styles.cardPriceRow}>
+                      <View>
+                        <Text style={styles.cardPrice}>₹{activePrice.toLocaleString('en-IN')}</Text>
+                        <Text style={styles.cardMrp}>₹{p.mrp.toLocaleString('en-IN')}</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.quickAddBtn}
+                        onPress={() => handleQuickAdd(p)}>
+                        <Text style={styles.quickAddBtnText}>+ Add</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Genuine Replacement Filters & Spares */}
+          <View style={styles.sectionHeader}>
+            <ThemedText type="subtitle" style={styles.sectionTitle}>
+              Replacement Filters & Spare Parts
+            </ThemedText>
+            <TouchableOpacity onPress={() => router.push({ pathname: '/explore', params: { category: 'filters' } } as any)}>
+              <Text style={styles.seeAllText}>All Spares →</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.sparesList}>
+            {featuredSpares.map(p => (
+              <TouchableOpacity
+                key={p.id}
+                style={styles.spareItem}
+                onPress={() => router.push(`/product/${p.id}` as any)}>
+                <Image source={{ uri: p.imageUrl }} style={styles.spareImg} resizeMode="cover" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.spareSku}>{p.sku} • {p.category.toUpperCase()}</Text>
+                  <Text style={styles.spareName} numberOfLines={1}>{p.name}</Text>
+                  <Text style={styles.sparePrice}>₹{p.retailPrice.toLocaleString('en-IN')}</Text>
                 </View>
                 <TouchableOpacity
-                  style={[styles.orderButton, { backgroundColor: theme.primary }]}
-                  activeOpacity={0.8}
-                  onPress={() => router.push('/explore')}>
-                  <Text style={styles.orderButtonText}>View Specs & Buy</Text>
+                  style={styles.quickAddSpare}
+                  onPress={() => handleQuickAdd(p)}>
+                  <Text style={styles.quickAddSpareText}>🛒</Text>
                 </TouchableOpacity>
-              </View>
-            </View>
-          ))}
-
-          {/* Guarantee Footer Strip */}
-          <View style={[styles.trustStrip, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-            <Text style={styles.trustItem}>✓ Free Installation</Text>
-            <Text style={styles.trustItem}>✓ 1-Year Comprehensive Warranty</Text>
-            <Text style={styles.trustItem}>✓ 100% Food-Grade RO Tank</Text>
+              </TouchableOpacity>
+            ))}
           </View>
+
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -234,264 +241,129 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
+  container: { flex: 1 },
+  safeArea: { flex: 1 },
+  scrollContent: { padding: Spacing.lg, paddingBottom: 110 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
+  badgeText: { fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 2 },
+  title: { fontSize: 22, fontWeight: '800' },
+  headerIcons: { flexDirection: 'row', gap: 10 },
+  iconBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: Radius.md,
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#334155',
+    justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
   },
-  scrollContent: {
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
-    paddingBottom: BottomTabInset + Spacing.xl,
-    maxWidth: MaxContentWidth,
-    width: '100%',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  iconEmoji: { fontSize: 18 },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#0284c7',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    paddingHorizontal: 4,
   },
-  brandTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: 1.5,
-    color: '#0077B6',
+  badgeCount: { color: '#ffffff', fontSize: 10, fontWeight: 'bold' },
+
+  toastBox: { backgroundColor: '#065f46', borderRadius: Radius.md, padding: Spacing.sm, marginBottom: Spacing.md, alignItems: 'center' },
+  toastText: { color: '#ffffff', fontSize: 12, fontWeight: '700' },
+
+  heroBanner: {
+    backgroundColor: '#082f49',
+    borderRadius: Radius.xl,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: '#0284c7',
+    marginBottom: Spacing.lg,
   },
-  brandSubtitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#64748B',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  purityBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: Radius.full,
-    gap: 6,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  purityBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  card: {
+  heroBadge: { backgroundColor: 'rgba(2, 132, 199, 0.3)', alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginBottom: 8 },
+  heroBadgeText: { color: '#38bdf8', fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
+  heroTitle: { fontSize: 20, fontWeight: '900', color: '#ffffff', marginBottom: 6 },
+  heroDesc: { color: '#94a3b8', fontSize: 12, lineHeight: 18, marginBottom: Spacing.md },
+  heroActionRow: { flexDirection: 'row', gap: 10 },
+  heroPrimaryBtn: { backgroundColor: '#0284c7', paddingVertical: 10, paddingHorizontal: 16, borderRadius: Radius.md },
+  heroPrimaryBtnText: { color: '#ffffff', fontSize: 12, fontWeight: '700' },
+  heroSecondaryBtn: { backgroundColor: '#1e293b', paddingVertical: 10, paddingHorizontal: 14, borderRadius: Radius.md, borderWidth: 1, borderColor: '#334155' },
+  heroSecondaryBtnText: { color: '#38bdf8', fontSize: 12, fontWeight: '700' },
+
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.md, marginBottom: Spacing.sm },
+  sectionTitle: { fontSize: 16, fontWeight: '800' },
+  seeAllText: { color: '#38bdf8', fontSize: 12, fontWeight: '700' },
+
+  categoryScroll: { gap: 10, paddingBottom: 6 },
+  categoryCard: {
+    width: 140,
+    backgroundColor: '#1e293b',
     borderRadius: Radius.lg,
+    padding: Spacing.md,
     borderWidth: 1,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
-  },
-  purityCard: {
-    backgroundColor: '#0A2540',
-    borderColor: '#1E3A5F',
-  },
-  cardHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.md,
-  },
-  purityCardOverline: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#38BDF8',
-    letterSpacing: 1,
-    marginBottom: 2,
-  },
-  purityCardTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: Radius.full,
-  },
-  statusPillText: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  metricsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
-  },
-  metricItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  metricDivider: {
-    width: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  metricValue: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  metricUnit: {
-    fontSize: 11,
-    color: '#38BDF8',
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  metricLabel: {
-    fontSize: 11,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  actionBannerButton: {
-    borderRadius: Radius.md,
-    paddingVertical: 12,
+    borderColor: '#334155',
     alignItems: 'center',
   },
-  actionBannerButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 14,
+  categoryIcon: { fontSize: 32, marginBottom: 6 },
+  categoryTitle: { color: '#ffffff', fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  categorySub: { color: '#94a3b8', fontSize: 10, textAlign: 'center', marginTop: 2 },
+
+  tdsWidget: {
+    backgroundColor: '#1e293b',
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#10b981',
+    marginVertical: Spacing.lg,
   },
-  sectionHeader: {
-    marginTop: Spacing.xs,
-    marginBottom: Spacing.sm,
-  },
-  sectionHeaderWithLink: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginTop: Spacing.md,
-    marginBottom: Spacing.sm,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  viewAllText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  servicesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  serviceCard: {
+  tdsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  tdsTitle: { color: '#ffffff', fontSize: 14, fontWeight: '700' },
+  tdsStatusPill: { backgroundColor: 'rgba(16, 185, 129, 0.2)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  tdsStatusText: { color: '#10b981', fontSize: 11, fontWeight: '700' },
+  tdsBody: { color: '#94a3b8', fontSize: 12, lineHeight: 17, marginBottom: 8 },
+  tdsCta: { backgroundColor: '#0f172a', padding: 8, borderRadius: Radius.sm, alignItems: 'center' },
+  tdsCtaText: { color: '#38bdf8', fontSize: 11, fontWeight: '700' },
+
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  card: {
     width: '48%',
-    borderRadius: Radius.md,
+    backgroundColor: '#1e293b',
+    borderRadius: Radius.lg,
+    overflow: 'hidden',
     borderWidth: 1,
-    padding: Spacing.md,
+    borderColor: '#334155',
   },
-  serviceIcon: {
-    fontSize: 24,
-    marginBottom: 6,
-  },
-  serviceTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  serviceDesc: {
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  productCard: {
-    marginBottom: Spacing.md,
-  },
-  productBadgeRow: {
+  cardImage: { width: '100%', height: 120, backgroundColor: '#0f172a' },
+  cardContent: { padding: Spacing.sm },
+  cardSku: { color: '#38bdf8', fontSize: 10, fontWeight: '800' },
+  cardTitle: { color: '#ffffff', fontSize: 13, fontWeight: '700', marginVertical: 2 },
+  cardRating: { color: '#fbbf24', fontSize: 11, fontWeight: '600' },
+  cardPriceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 8 },
+  cardPrice: { color: '#38bdf8', fontSize: 14, fontWeight: '800' },
+  cardMrp: { color: '#64748b', fontSize: 10, textDecorationLine: 'line-through' },
+  quickAddBtn: { backgroundColor: '#0284c7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.sm },
+  quickAddBtnText: { color: '#ffffff', fontSize: 11, fontWeight: '700' },
+
+  sparesList: { gap: 8 },
+  spareItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
-  },
-  productBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: Radius.sm,
-  },
-  productBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  productRating: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  productName: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  productTagline: {
-    fontSize: 13,
-    marginBottom: 12,
-  },
-  specsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 14,
-  },
-  specTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: Radius.sm,
-  },
-  specTagText: {
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  productFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    paddingTop: 12,
-  },
-  productPrice: {
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  productOriginalPrice: {
-    fontSize: 12,
-    textDecorationLine: 'line-through',
-  },
-  orderButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    backgroundColor: '#1e293b',
     borderRadius: Radius.md,
-  },
-  orderButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  trustStrip: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    borderRadius: Radius.md,
-    borderWidth: 1,
     padding: Spacing.sm,
-    marginTop: Spacing.sm,
+    borderWidth: 1,
+    borderColor: '#334155',
+    gap: 10,
   },
-  trustItem: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#64748B',
-  },
+  spareImg: { width: 55, height: 55, borderRadius: Radius.sm, backgroundColor: '#0f172a' },
+  spareSku: { color: '#38bdf8', fontSize: 9, fontWeight: '800' },
+  spareName: { color: '#ffffff', fontSize: 13, fontWeight: '700' },
+  sparePrice: { color: '#38bdf8', fontSize: 12, fontWeight: '800' },
+  quickAddSpare: { padding: 8, backgroundColor: '#0284c7', borderRadius: Radius.sm },
+  quickAddSpareText: { fontSize: 14 },
 });

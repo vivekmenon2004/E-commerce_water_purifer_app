@@ -9,22 +9,38 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router, useLocalSearchParams } from 'expo-router';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Radius } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
+import { useCart } from '@/context/cart-context';
 import { db, isDemoMode } from '@/lib/firebase';
 import { SEED_PRODUCTS, PRODUCT_CATEGORIES } from '@/constants/seed-data';
-import { Product, ProductCategory } from '@/types';
+import { Product } from '@/types';
+
+type SortOption = 'featured' | 'priceAsc' | 'priceDesc' | 'rating';
 
 export default function ExploreScreen() {
   const { user, isDealer } = useAuth();
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const { addToCart, toggleWishlist, isInWishlist } = useCart();
+  const params = useLocalSearchParams<{ category?: string }>();
+
+  const [selectedCategory, setSelectedCategory] = useState<string>(params.category || 'all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('featured');
+  const [inStockOnly, setInStockOnly] = useState(false);
   const [products, setProducts] = useState<Product[]>(SEED_PRODUCTS);
   const [loading, setLoading] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (params.category) {
+      setSelectedCategory(params.category);
+    }
+  }, [params.category]);
 
   useEffect(() => {
     async function fetchProducts() {
@@ -35,7 +51,7 @@ export default function ExploreScreen() {
 
       setLoading(true);
       try {
-        const prodRef = collection(db, 'products');
+        const prodRef = collection(db as any, 'products');
         const q = query(prodRef, where('isActive', '==', true));
         const snap = await getDocs(q);
         if (!snap.empty) {
@@ -56,14 +72,46 @@ export default function ExploreScreen() {
     fetchProducts();
   }, []);
 
-  const filteredProducts = products.filter(p => {
+  const handleQuickAdd = (product: Product, e: any) => {
+    e.stopPropagation?.();
+    const res = addToCart(product, 1);
+    setToastMsg(res.message);
+    setTimeout(() => setToastMsg(null), 2500);
+  };
+
+  const handleToggleWishlist = (product: Product, e: any) => {
+    e.stopPropagation?.();
+    toggleWishlist(product);
+  };
+
+  // Filter and Sort Pipeline
+  let filteredProducts = products.filter(p => {
     const matchesCategory = selectedCategory === 'all' || p.category.toLowerCase() === selectedCategory.toLowerCase();
     const matchesSearch = searchQuery === '' || 
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
       p.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+    const matchesStock = inStockOnly ? p.stock > 0 : true;
+    return matchesCategory && matchesSearch && matchesStock;
   });
+
+  // Sorting
+  filteredProducts.sort((a, b) => {
+    const priceA = isDealer ? a.dealerPrice : a.retailPrice;
+    const priceB = isDealer ? b.dealerPrice : b.retailPrice;
+
+    if (sortBy === 'priceAsc') return priceA - priceB;
+    if (sortBy === 'priceDesc') return priceB - priceA;
+    if (sortBy === 'rating') return b.ratingAverage - a.ratingAverage;
+    return 0; // featured default
+  });
+
+  const resetFilters = () => {
+    setSelectedCategory('all');
+    setSearchQuery('');
+    setSortBy('featured');
+    setInStockOnly(false);
+  };
 
   return (
     <ThemedView style={styles.container}>
@@ -85,22 +133,12 @@ export default function ExploreScreen() {
             </Text>
           </View>
 
-          {/* Pricing Status Notice */}
-          <View style={[styles.pricingNotice, isDealer ? styles.dealerNotice : styles.retailNotice]}>
-            <View style={styles.noticeHeader}>
-              <Text style={styles.noticeIcon}>{isDealer ? '🌟' : '🏷️'}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.noticeTitle}>
-                  {isDealer ? 'Wholesale Dealer Pricing Active' : 'Retail Customer Pricing'}
-                </Text>
-                <Text style={styles.noticeSubtitle}>
-                  {isDealer 
-                    ? `Account: ${user?.dealerDetails?.businessName || user?.name} • Tier: Verified Authorized Dealer`
-                    : 'Wholesale prices are available for verified dealers. Apply in your Account tab.'}
-                </Text>
-              </View>
+          {/* Quick Toast */}
+          {toastMsg && (
+            <View style={styles.toastBox}>
+              <Text style={styles.toastText}>✓ {toastMsg}</Text>
             </View>
-          </View>
+          )}
 
           {/* Search Box */}
           <View style={styles.searchContainer}>
@@ -133,6 +171,44 @@ export default function ExploreScreen() {
             })}
           </ScrollView>
 
+          {/* Sort & Filter Bar */}
+          <View style={styles.filterSortRow}>
+            <View style={styles.sortPills}>
+              <Text style={styles.sortLabel}>Sort:</Text>
+              <TouchableOpacity
+                style={[styles.sortPill, sortBy === 'featured' && styles.sortPillActive]}
+                onPress={() => setSortBy('featured')}>
+                <Text style={[styles.sortPillText, sortBy === 'featured' && styles.sortPillTextActive]}>Featured</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.sortPill, sortBy === 'priceAsc' && styles.sortPillActive]}
+                onPress={() => setSortBy('priceAsc')}>
+                <Text style={[styles.sortPillText, sortBy === 'priceAsc' && styles.sortPillTextActive]}>Price: Low</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.sortPill, sortBy === 'priceDesc' && styles.sortPillActive]}
+                onPress={() => setSortBy('priceDesc')}>
+                <Text style={[styles.sortPillText, sortBy === 'priceDesc' && styles.sortPillTextActive]}>Price: High</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.sortPill, sortBy === 'rating' && styles.sortPillActive]}
+                onPress={() => setSortBy('rating')}>
+                <Text style={[styles.sortPillText, sortBy === 'rating' && styles.sortPillTextActive]}>★ Rating</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.stockToggle, inStockOnly && styles.stockToggleActive]}
+              onPress={() => setInStockOnly(!inStockOnly)}>
+              <Text style={[styles.stockToggleText, inStockOnly && styles.stockToggleTextActive]}>
+                {inStockOnly ? '✓ In Stock' : 'In Stock Only'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Results Count */}
           <View style={styles.countRow}>
             <Text style={styles.countText}>
@@ -140,75 +216,120 @@ export default function ExploreScreen() {
             </Text>
           </View>
 
+          {/* Loading State */}
+          {loading && (
+            <View style={styles.loadingBox}>
+              <Text style={styles.loadingIcon}>💧</Text>
+              <Text style={styles.loadingText}>Fetching products from Firestore...</Text>
+            </View>
+          )}
+
+          {/* Empty State */}
+          {!loading && filteredProducts.length === 0 && (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyIcon}>🔍</Text>
+              <ThemedText type="subtitle" style={styles.emptyTitle}>
+                No products match your search or filters
+              </ThemedText>
+              <Text style={styles.emptyDesc}>
+                Try adjusting your search terms or clearing selected category filters.
+              </Text>
+              <TouchableOpacity style={styles.resetBtn} onPress={resetFilters}>
+                <Text style={styles.resetBtnText}>Reset All Filters</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Products Grid / List */}
-          <View style={styles.productList}>
-            {filteredProducts.map(product => {
-              const activePrice = isDealer ? product.dealerPrice : product.retailPrice;
-              const savings = product.mrp - activePrice;
-              const savingsPercent = Math.round((savings / product.mrp) * 100);
+          {!loading && (
+            <View style={styles.productList}>
+              {filteredProducts.map(product => {
+                const activePrice = isDealer ? product.dealerPrice : product.retailPrice;
+                const savings = product.mrp - activePrice;
+                const savingsPercent = Math.round((savings / product.mrp) * 100);
+                const isFavorited = isInWishlist(product.id);
+                const inStock = product.stock > 0;
 
-              return (
-                <View key={product.id} style={styles.productCard}>
-                  {/* Image */}
-                  <Image
-                    source={{ uri: product.imageUrl }}
-                    style={styles.productImage}
-                    resizeMode="cover"
-                  />
+                return (
+                  <TouchableOpacity
+                    key={product.id}
+                    style={styles.productCard}
+                    activeOpacity={0.85}
+                    onPress={() => router.push(`/product/${product.id}` as any)}>
+                    {/* Image */}
+                    <View style={styles.imageWrap}>
+                      <Image
+                        source={{ uri: product.imageUrl }}
+                        style={styles.productImage}
+                        resizeMode="cover"
+                      />
 
-                  {/* Body */}
-                  <View style={styles.cardBody}>
-                    <View style={styles.cardTopRow}>
-                      <Text style={styles.skuBadge}>{product.sku}</Text>
-                      <Text style={styles.catBadge}>{product.category.toUpperCase()}</Text>
+                      <TouchableOpacity
+                        style={[styles.wishlistBtn, isFavorited && styles.wishlistBtnActive]}
+                        onPress={(e) => handleToggleWishlist(product, e)}>
+                        <Text style={styles.wishlistBtnIcon}>{isFavorited ? '❤️' : '🤍'}</Text>
+                      </TouchableOpacity>
                     </View>
 
-                    <Text style={styles.productName} numberOfLines={2}>
-                      {product.name}
-                    </Text>
+                    {/* Body */}
+                    <View style={styles.cardBody}>
+                      <View style={styles.cardTopRow}>
+                        <Text style={styles.skuBadge}>{product.sku}</Text>
+                        <Text style={styles.catBadge}>{product.category.toUpperCase()}</Text>
+                      </View>
 
-                    <Text style={styles.productDesc} numberOfLines={2}>
-                      {product.description}
-                    </Text>
-
-                    {/* Stock & Rating */}
-                    <View style={styles.metaRow}>
-                      <Text style={styles.ratingText}>★ {product.ratingAverage} ({product.ratingCount})</Text>
-                      <Text style={styles.stockText}>
-                        {product.stock > 10 ? `In Stock (${product.stock})` : `Low Stock: ${product.stock} left`}
+                      <Text style={styles.productName} numberOfLines={2}>
+                        {product.name}
                       </Text>
-                    </View>
 
-                    {/* Price Block */}
-                    <View style={styles.priceRow}>
-                      <View>
-                        <Text style={styles.priceLabel}>
-                          {isDealer ? 'Wholesale Dealer Price' : 'Special Retail Price'}
+                      <Text style={styles.productDesc} numberOfLines={2}>
+                        {product.description}
+                      </Text>
+
+                      {/* Stock & Rating */}
+                      <View style={styles.metaRow}>
+                        <Text style={styles.ratingText}>★ {product.ratingAverage} ({product.ratingCount})</Text>
+                        <Text style={[styles.stockText, !inStock && { color: '#ef4444' }]}>
+                          {inStock ? (product.stock > 10 ? `In Stock (${product.stock})` : `Low Stock: ${product.stock}`) : 'Out of Stock'}
                         </Text>
-                        <View style={styles.priceGroup}>
-                          <Text style={styles.mainPrice}>₹{activePrice.toLocaleString('en-IN')}</Text>
-                          <Text style={styles.mrpStrike}>₹{product.mrp.toLocaleString('en-IN')}</Text>
+                      </View>
+
+                      {/* Price Block */}
+                      <View style={styles.priceRow}>
+                        <View>
+                          <Text style={styles.priceLabel}>
+                            {isDealer ? 'Wholesale Dealer Price' : 'Special Retail Price'}
+                          </Text>
+                          <View style={styles.priceGroup}>
+                            <Text style={styles.mainPrice}>₹{activePrice.toLocaleString('en-IN')}</Text>
+                            <Text style={styles.mrpStrike}>₹{product.mrp.toLocaleString('en-IN')}</Text>
+                          </View>
+                        </View>
+
+                        <View style={[styles.savingsBadge, isDealer && styles.dealerSavings]}>
+                          <Text style={styles.savingsText}>SAVE {savingsPercent}%</Text>
                         </View>
                       </View>
 
-                      <View style={[styles.savingsBadge, isDealer && styles.dealerSavings]}>
-                        <Text style={styles.savingsText}>SAVE {savingsPercent}%</Text>
+                      {/* Card Action Row */}
+                      <View style={styles.cardFooter}>
+                        <TouchableOpacity
+                          style={[styles.cardAddToCartBtn, !inStock && styles.btnDisabled]}
+                          disabled={!inStock}
+                          onPress={(e) => handleQuickAdd(product, e)}>
+                          <Text style={styles.cardAddToCartBtnText}>
+                            {inStock ? 'Add to Cart 🛒' : 'Out of Stock'}
+                          </Text>
+                        </TouchableOpacity>
+
+                        <Text style={styles.viewDetailHint}>View Details →</Text>
                       </View>
                     </View>
-
-                    {/* Dealer comparison info for normal customer */}
-                    {!isDealer && (
-                      <View style={styles.dealerHint}>
-                        <Text style={styles.dealerHintText}>
-                          Dealer Wholesale: ₹{product.dealerPrice.toLocaleString('en-IN')} (Authorized partners only)
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              );
-            })}
-          </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
 
         </ScrollView>
       </SafeAreaView>
@@ -225,20 +346,16 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: '800' },
   subtitle: { fontSize: 13, color: '#94a3b8', marginTop: 4 },
 
-  pricingNotice: {
-    borderRadius: Radius.lg,
-    padding: Spacing.md,
+  toastBox: {
+    backgroundColor: '#065f46',
+    borderRadius: Radius.md,
+    padding: Spacing.sm,
     marginBottom: Spacing.md,
-    borderWidth: 1,
+    alignItems: 'center',
   },
-  retailNotice: { backgroundColor: '#1e293b', borderColor: '#334155' },
-  dealerNotice: { backgroundColor: '#082f49', borderColor: '#0284c7' },
-  noticeHeader: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  noticeIcon: { fontSize: 22 },
-  noticeTitle: { color: '#ffffff', fontSize: 13, fontWeight: '700' },
-  noticeSubtitle: { color: '#94a3b8', fontSize: 11, marginTop: 2 },
+  toastText: { color: '#ffffff', fontSize: 12, fontWeight: '700' },
 
-  searchContainer: { marginBottom: Spacing.md },
+  searchContainer: { marginBottom: Spacing.sm },
   searchInput: {
     backgroundColor: '#1e293b',
     borderRadius: Radius.md,
@@ -263,8 +380,47 @@ const styles = StyleSheet.create({
   categoryText: { color: '#94a3b8', fontSize: 11, fontWeight: '700' },
   categoryTextActive: { color: '#ffffff' },
 
-  countRow: { marginVertical: Spacing.sm },
+  filterSortRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: Spacing.sm,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  sortPills: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  sortLabel: { color: '#64748b', fontSize: 11, fontWeight: '600' },
+  sortPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.sm, backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#334155' },
+  sortPillActive: { backgroundColor: '#0284c7', borderColor: '#38bdf8' },
+  sortPillText: { color: '#94a3b8', fontSize: 11, fontWeight: '600' },
+  sortPillTextActive: { color: '#ffffff' },
+
+  stockToggle: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.sm, backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#334155' },
+  stockToggleActive: { backgroundColor: 'rgba(16, 185, 129, 0.2)', borderColor: '#10b981' },
+  stockToggleText: { color: '#94a3b8', fontSize: 11, fontWeight: '600' },
+  stockToggleTextActive: { color: '#10b981' },
+
+  countRow: { marginBottom: Spacing.sm },
   countText: { color: '#64748b', fontSize: 12 },
+
+  loadingBox: { padding: Spacing.xxl, alignItems: 'center' },
+  loadingIcon: { fontSize: 36, marginBottom: 8 },
+  loadingText: { color: '#94a3b8', fontSize: 13 },
+
+  emptyCard: {
+    backgroundColor: '#1e293b',
+    borderRadius: Radius.lg,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
+    marginVertical: Spacing.lg,
+  },
+  emptyIcon: { fontSize: 44, marginBottom: 8 },
+  emptyTitle: { fontSize: 16, fontWeight: '700', textAlign: 'center', marginBottom: 4 },
+  emptyDesc: { color: '#94a3b8', fontSize: 12, textAlign: 'center', marginBottom: Spacing.md },
+  resetBtn: { backgroundColor: '#0284c7', paddingHorizontal: 16, paddingVertical: 10, borderRadius: Radius.md },
+  resetBtnText: { color: '#ffffff', fontSize: 12, fontWeight: '700' },
 
   productList: { gap: Spacing.md },
   productCard: {
@@ -274,7 +430,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#334155',
   },
-  productImage: { width: '100%', height: 160 },
+  imageWrap: { position: 'relative', width: '100%', height: 160, backgroundColor: '#0f172a' },
+  productImage: { width: '100%', height: '100%' },
+  wishlistBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  wishlistBtnActive: { backgroundColor: 'rgba(239, 68, 68, 0.2)' },
+  wishlistBtnIcon: { fontSize: 16 },
+
   cardBody: { padding: Spacing.md },
   cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   skuBadge: { color: '#38bdf8', fontSize: 11, fontWeight: '800', letterSpacing: 0.8 },
@@ -295,11 +466,22 @@ const styles = StyleSheet.create({
   dealerSavings: { backgroundColor: '#075985' },
   savingsText: { color: '#ffffff', fontSize: 10, fontWeight: '800' },
 
-  dealerHint: {
-    marginTop: 8,
-    paddingTop: 6,
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(51, 65, 85, 0.4)',
+    borderTopColor: 'rgba(51, 65, 85, 0.6)',
   },
-  dealerHintText: { color: '#64748b', fontSize: 10, fontStyle: 'italic' },
+  cardAddToCartBtn: {
+    backgroundColor: '#0284c7',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: Radius.sm,
+  },
+  btnDisabled: { opacity: 0.4 },
+  cardAddToCartBtnText: { color: '#ffffff', fontSize: 12, fontWeight: '700' },
+  viewDetailHint: { color: '#38bdf8', fontSize: 11, fontWeight: '700' },
 });

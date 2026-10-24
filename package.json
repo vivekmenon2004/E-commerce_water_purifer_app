@@ -13,7 +13,8 @@
     "lint:mobile": "npm --prefix apps/mobile run lint",
     "seed": "node scripts/seed-firestore.mjs",
     "seed:dry-run": "node scripts/seed-firestore.mjs --dry-run",
-    "test:milestone": "node tests/verify-milestone.mjs"
+    "test:milestone": "node tests/verify-milestone.mjs",
+    "test:shopping": "node tests/customer-shopping-test.mjs"
   },
   "keywords": [
     "water-purifier",

@@ -5,6 +5,7 @@ import { useColorScheme } from 'react-native';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import AppTabs from '@/components/app-tabs';
 import { AuthProvider } from '@/context/auth-context';
+import { CartProvider } from '@/context/cart-context';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -13,8 +14,10 @@ export default function TabLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <AuthProvider>
-        <AnimatedSplashOverlay />
-        <AppTabs />
+        <CartProvider>
+          <AnimatedSplashOverlay />
+          <AppTabs />
+        </CartProvider>
       </AuthProvider>
     </ThemeProvider>
   );
