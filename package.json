@@ -18,7 +18,8 @@
     "test:checkout": "node tests/checkout-and-services-test.mjs",
     "test:payment-flow": "node tests/milestone-test-payment-verification.mjs",
     "test:dealer": "node tests/dealer-features-test.mjs",
-    "test:dealer-accounts": "node tests/milestone-dealer-accounts-verification.mjs"
+    "test:dealer-accounts": "node tests/milestone-dealer-accounts-verification.mjs",
+    "test:integrations": "node tests/verify-all-integrations.mjs"
   },
   "keywords": [
     "water-purifier",

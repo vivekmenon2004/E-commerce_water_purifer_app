@@ -1,39 +1,133 @@
-# n8n Automations - Calinfco Water Purifiers
+# Calinfco Operations - Local n8n Automation Engine
 
-This directory houses automated workflows powering backend notifications, technician dispatching, and scheduled filter maintenance reminders.
+This folder contains the Docker Compose setup, environment templates, product automation data, and workflow definitions powering Calinfco Water Purifiers backend automations.
 
-## Included Workflows
+---
 
-1. **`workflows/order-confirmation-notification.json`**:
-   - **Trigger**: Webhook triggered upon order placement (`/webhook/order-created`).
-   - **Actions**:
-     - Formats order details & customer address.
-     - Sends SMS / WhatsApp order confirmation with estimated delivery date.
-     - Creates initial installation ticket in `serviceRequests` collection.
+## Prerequisites
 
-2. **`workflows/service-request-dispatch.json`**:
-   - **Trigger**: Webhook triggered when a customer books a service or filter replacement (`/webhook/service-dispatch`).
-   - **Actions**:
-     - Evaluates customer postal code against technician service zones.
-     - Dispatches alert to technician mobile device.
-     - Sends customer appointment verification with technician contact and ETA.
+- **Docker Desktop** installed and running on Windows.
+- **PowerShell** (built-in on Windows).
 
-3. **`workflows/filter-replacement-reminder.json`**:
-   - **Trigger**: Cron / Scheduled trigger (runs daily at 09:00 AM).
-   - **Actions**:
-     - Scans `orders` and `amcSubscriptions` for purifiers installed 150-180 days ago.
-     - Calculates filter lifespan based on average family water consumption.
-     - Sends automated WhatsApp / Push Notification reminder to schedule sediment/carbon filter replacement.
+---
 
-## How to Import Workflows into n8n
+## Quick Start Guide (Windows PowerShell)
 
-1. Start n8n locally:
-   ```bash
-   npx n8n
-   # or via Docker
-   docker run -it --rm --name n8n -p 5678:5678 -v ~/.n8n:/home/node/.n8n n8nio/n8n
-   ```
-2. Navigate to `http://localhost:5678`.
-3. Go to **Workflows** > **Import from File**.
-4. Select any `.json` workflow file from the `workflows/` folder.
-5. Configure your environment credentials (Twilio, WhatsApp Business Cloud API, Firebase Admin SDK).
+Follow these step-by-step instructions in PowerShell to initialize and run n8n locally.
+
+### Step 1: Navigate to the n8n Directory
+Open PowerShell and change to the `automation/n8n` directory:
+```powershell
+cd "d:\My Projects\E-commerce_water_purifer_app\automation\n8n"
+```
+
+---
+
+### Step 2: Generate a Secure Encryption Key
+n8n requires a minimum 32-character encryption key (`N8N_ENCRYPTION_KEY`) to encrypt stored credentials in its local database. Run the following command in PowerShell to generate a cryptographic 64-character hex key:
+
+```powershell
+$encryptionKey = [Convert]::ToHexString((1..32 | ForEach-Object { Get-Random -Minimum 0 -Maximum 256 }))
+Write-Host "Generated Key: $encryptionKey"
+```
+
+---
+
+### Step 3: Create the Local `.env` File
+Create `.env` from `.env.example` and set the generated key:
+
+```powershell
+# Copy the template to .env
+Copy-Item .env.example .env
+
+# Insert the generated encryption key into .env
+(Get-Content .env) -replace 'replace_with_a_secure_random_key_min_32_chars', $encryptionKey | Set-Content .env
+
+# Verify the file was created (never commit this file)
+Get-Content .env | Select-String "N8N_ENCRYPTION_KEY"
+```
+
+> **Security Note:** `.env` is protected by both `.gitignore` and `automation/n8n/.gitignore`. Never commit actual keys or API credentials to version control.
+
+---
+
+### Step 4: Start n8n Using Docker Compose
+Start the n8n container in the background (detached mode):
+
+```powershell
+docker compose up -d
+```
+
+Expected output:
+```text
+[+] Running 2/2
+ ✔ Network n8n_default       Created
+ ✔ Container calinfco-n8n     Started
+```
+
+---
+
+### Step 5: Verify the Service is Running
+Check the status of the container:
+
+```powershell
+docker compose ps
+```
+
+To view the live execution logs:
+
+```powershell
+docker compose logs -f n8n
+```
+
+Look for the log output:
+```text
+Editor is now accessible via:
+http://127.0.0.1:5678/
+```
+Press `Ctrl + C` to exit the log stream.
+
+---
+
+### Step 6: Access the n8n Web Console
+Open your web browser and navigate to:
+```text
+http://localhost:5678
+```
+*(Or `http://127.0.0.1:5678`)*
+
+On first access, complete the one-time owner account setup with your local admin email and password.
+
+---
+
+### Step 7: Managing the n8n Service Lifecycle
+
+#### Stop n8n (Preserving All Data & Workflows):
+To gracefully stop n8n without losing any workflows, execution history, or credentials, use:
+```powershell
+docker compose stop
+```
+*(Or `docker compose down` — note that `docker compose down` stops and removes the container, but leaves the persistent `calinfco_n8n_data` Docker volume completely intact).*
+
+#### Restart / Start n8n Again:
+Whenever you wish to resume n8n:
+```powershell
+docker compose start
+# or if down was used:
+docker compose up -d
+```
+All your imported workflows, database entries, and credentials will be preserved.
+
+#### Check Persistent Data Volume:
+To verify that your persistent data volume exists:
+```powershell
+docker volume ls | Select-String "calinfco_n8n_data"
+```
+
+---
+
+## Product Social Media Automation
+
+- **Data Template:** `Products-template.csv` contains verified product descriptions, image prompts, captions, and publishing status.
+- **Workflow Plan:** See `WORKFLOW_PLAN.md` for complete architecture, node order, and dry-run execution logic.
+- **Workflow Files:** Ready-to-import JSON definitions are in `workflows/`.

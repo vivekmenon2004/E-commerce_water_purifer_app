@@ -25,6 +25,8 @@ export default function AccountScreen() {
     isDemoMode, 
     isDealer, 
     isPendingDealer, 
+    pushStatus,
+    refreshPushToken,
     signIn, 
     signUpCustomer, 
     applyForDealer, 
@@ -200,6 +202,62 @@ export default function AccountScreen() {
                   <Text style={styles.referralLabel}>Your Referral Code:</Text>
                   <Text style={styles.referralCode}>{user.referralCode}</Text>
                 </View>
+              </View>
+
+              {/* Push Notifications & FCM Device Status Card */}
+              <View style={styles.fcmCard}>
+                <View style={styles.fcmHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.fcmTitle}>📲 Android FCM & Push Notifications</Text>
+                    <Text style={styles.fcmSubtitle}>
+                      Order dispatch alerts, technician arrival & wholesale status
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.fcmStatusBadge,
+                      pushStatus?.status === 'registered'
+                        ? styles.fcmBadgeActive
+                        : styles.fcmBadgeWarning,
+                    ]}>
+                    <Text
+                      style={[
+                        styles.fcmBadgeText,
+                        pushStatus?.status === 'registered'
+                          ? { color: '#10b981' }
+                          : { color: '#f59e0b' },
+                      ]}>
+                      {pushStatus?.status === 'registered'
+                        ? '✓ Registered'
+                        : pushStatus?.status === 'permission_denied'
+                        ? '🚫 Denied'
+                        : pushStatus?.status === 'unsupported_platform'
+                        ? '🌐 Web Platform'
+                        : '⚠️ Unconfigured'}
+                    </Text>
+                  </View>
+                </View>
+
+                {pushStatus?.status === 'registered' && pushStatus.token ? (
+                  <View style={styles.fcmTokenBox}>
+                    <Text style={styles.fcmTokenLabel}>Device Push Token:</Text>
+                    <Text style={styles.fcmTokenVal} numberOfLines={2}>
+                      {pushStatus.token}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.fcmNoticeText}>
+                    {pushStatus?.error ||
+                      pushStatus?.message ||
+                      'FCM push notification token will register automatically when running on Android with google-services.json configured.'}
+                  </Text>
+                )}
+
+                <TouchableOpacity
+                  style={styles.fcmRefreshBtn}
+                  onPress={() => refreshPushToken()}>
+                  <Text style={styles.fcmRefreshBtnText}>🔄 Re-check & Refresh Token</Text>
+                </TouchableOpacity>
               </View>
 
               {/* Apply for Dealer Request (if standard customer) */}
@@ -777,4 +835,60 @@ const styles = StyleSheet.create({
   },
   orderItemName: { color: '#e2e8f0', fontSize: 12, fontWeight: '700', marginTop: 4 },
   orderDate: { color: '#94a3b8', fontSize: 10, marginTop: 2 },
+
+  // FCM Push Notifications Status Card
+  fcmCard: {
+    backgroundColor: '#0f172a',
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#0284c7',
+    marginBottom: Spacing.md,
+  },
+  fcmHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 8,
+  },
+  fcmTitle: { color: '#ffffff', fontSize: 14, fontWeight: '800' },
+  fcmSubtitle: { color: '#94a3b8', fontSize: 11, marginTop: 2 },
+  fcmStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  fcmBadgeActive: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderColor: '#10b981',
+  },
+  fcmBadgeWarning: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderColor: '#f59e0b',
+  },
+  fcmBadgeText: { fontSize: 11, fontWeight: '800' },
+  fcmTokenBox: {
+    backgroundColor: '#1e293b',
+    borderRadius: Radius.sm,
+    padding: 8,
+    marginVertical: 6,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  fcmTokenLabel: { color: '#38bdf8', fontSize: 10, fontWeight: '700', marginBottom: 2 },
+  fcmTokenVal: { color: '#f8fafc', fontSize: 11, fontFamily: 'monospace' },
+  fcmNoticeText: { color: '#94a3b8', fontSize: 11, lineHeight: 16, marginVertical: 6 },
+  fcmRefreshBtn: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#1e293b',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: '#0284c7',
+    marginTop: 4,
+  },
+  fcmRefreshBtnText: { color: '#38bdf8', fontSize: 11, fontWeight: '700' },
 });

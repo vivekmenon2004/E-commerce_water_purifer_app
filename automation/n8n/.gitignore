@@ -1,0 +1,10 @@
+# Ignore local secret environment files
+.env
+.env.*
+!.env.example
+
+# Ignore local execution artifacts and persistent database state
+n8n_data/
+local_artifacts/
+*.sqlite
+*.log

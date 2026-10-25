@@ -22,6 +22,7 @@ const navigation = [
   { name: "Dealer Approvals", href: "/dealers", Icon: DealersIcon },
   { name: "Service Desk", href: "/services", Icon: ServicesIcon },
   { name: "Customers & AMC", href: "/customers", Icon: CustomersIcon },
+  { name: "Integration Diagnostics", href: "/test-integrations", Icon: WaterDropIcon },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {

@@ -10,6 +10,11 @@ import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 import { auth, db, isDemoMode, DEMO_PROFILES } from '../lib/firebase';
 import { UserProfile, DealerDetails, UserAddress } from '../types';
+import {
+  registerForPushNotificationsAsync,
+  saveDevicePushToken,
+  PushRegistrationResult,
+} from '../lib/push-notifications';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -17,6 +22,8 @@ interface AuthContextType {
   isDemoMode: boolean;
   isDealer: boolean;
   isPendingDealer: boolean;
+  pushStatus: PushRegistrationResult | null;
+  refreshPushToken: () => Promise<PushRegistrationResult>;
   signIn: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   signUpCustomer: (name: string, email: string, phone: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   applyForDealer: (details: Omit<DealerDetails, 'requestedAt'>) => Promise<{ success: boolean; error?: string }>;
@@ -36,6 +43,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return isDemoMode ? DEMO_PROFILES.customer : null;
   });
   const [isLoading, setIsLoading] = useState<boolean>(!isDemoMode);
+  const [pushStatus, setPushStatus] = useState<PushRegistrationResult | null>(null);
+
+  const initPushRegistration = async (targetUser: UserProfile | null): Promise<PushRegistrationResult> => {
+    try {
+      const res = await registerForPushNotificationsAsync();
+      setPushStatus(res);
+      if (res.status === 'registered' && res.token && targetUser) {
+        await saveDevicePushToken(targetUser.id, {
+          token: res.token,
+          nativeFcmToken: res.nativeFcmToken,
+          platform: res.platform,
+        });
+      }
+      return res;
+    } catch (e: unknown) {
+      const err = e as Error;
+      const failResult: PushRegistrationResult = {
+        status: 'unconfigured',
+        token: null,
+        platform: 'android',
+        error: err.message,
+      };
+      setPushStatus(failResult);
+      return failResult;
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      initPushRegistration(user);
+    }
+  }, [user?.id]);
+
+  const refreshPushToken = async () => {
+    return initPushRegistration(user);
+  };
 
   useEffect(() => {
     if (isDemoMode || !auth || !db) {
@@ -354,6 +397,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isDemoMode,
         isDealer,
         isPendingDealer,
+        pushStatus,
+        refreshPushToken,
         signIn,
         signUpCustomer,
         applyForDealer,

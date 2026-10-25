@@ -47,48 +47,59 @@ export default function DealerApprovalsPage() {
 
   const handleApprove = async (userId: string) => {
     const now = new Date().toISOString();
+    const dealerUser = users.find((u) => u.id === userId);
 
-    if (isDemoMode || !db) {
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === userId
-            ? {
-                ...u,
-                role: "dealer",
-                dealerStatus: "approved",
-                dealerDetails: u.dealerDetails
-                  ? {
-                      ...u.dealerDetails,
-                      reviewedAt: now,
-                      reviewedBy: "usr-admin-01",
-                    }
-                  : undefined,
-              }
-            : u
-        )
-      );
-      setActionSuccess(`Dealer application approved successfully! Wholesale pricing unlocked.`);
-      setTimeout(() => setActionSuccess(null), 4000);
-      return;
-    }
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === userId
+          ? {
+              ...u,
+              role: "dealer",
+              dealerStatus: "approved",
+              dealerDetails: u.dealerDetails
+                ? {
+                    ...u.dealerDetails,
+                    reviewedAt: now,
+                    reviewedBy: "usr-admin-01",
+                  }
+                : undefined,
+            }
+          : u
+      )
+    );
+    setActionSuccess(`Approving dealership and dispatching notifications...`);
 
     try {
-      const userRef = doc(db, "users", userId);
-      await updateDoc(userRef, {
-        role: "dealer",
-        dealerStatus: "approved",
-        "dealerDetails.reviewedAt": now,
-        "dealerDetails.reviewedBy": "admin",
-        updatedAt: now,
+      if (!isDemoMode && db) {
+        const userRef = doc(db, "users", userId);
+        await updateDoc(userRef, {
+          role: "dealer",
+          dealerStatus: "approved",
+          "dealerDetails.reviewedAt": now,
+          "dealerDetails.reviewedBy": "admin",
+          updatedAt: now,
+        });
+      }
+
+      // Trigger trusted server-side multi-channel notification dispatcher (Push, Email, SMS)
+      await fetch(`/api/dealers/${userId}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "approved",
+          dealerName: dealerUser?.dealerDetails?.businessName || dealerUser?.name,
+          contactPerson: dealerUser?.dealerDetails?.contactPerson || dealerUser?.name,
+          email: dealerUser?.email,
+          phone: dealerUser?.phone,
+        }),
       });
-      setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, role: "dealer", dealerStatus: "approved" } : u))
-      );
-      setActionSuccess(`Dealer application approved in Firestore! Wholesale tier active.`);
+
+      setActionSuccess(`Dealer application approved! Notifications dispatched & wholesale tier active.`);
       setTimeout(() => setActionSuccess(null), 4000);
     } catch (err: unknown) {
       const error = err as Error;
-      alert("Error approving dealer: " + error.message);
+      setActionSuccess(`Dealer approved locally (${error.message})`);
+      setTimeout(() => setActionSuccess(null), 4000);
     }
   };
 
@@ -97,50 +108,61 @@ export default function DealerApprovalsPage() {
     const userId = rejectingUserId;
     const reason = rejectionReasonInput.trim() || "Requirements not met";
     const now = new Date().toISOString();
+    const dealerUser = users.find((u) => u.id === userId);
 
-    if (isDemoMode || !db) {
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === userId
-            ? {
-                ...u,
-                dealerStatus: "rejected",
-                dealerDetails: u.dealerDetails
-                  ? {
-                      ...u.dealerDetails,
-                      rejectionReason: reason,
-                      reviewedAt: now,
-                      reviewedBy: "usr-admin-01",
-                    }
-                  : undefined,
-              }
-            : u
-        )
-      );
-      setRejectingUserId(null);
-      setActionSuccess(`Dealer application marked as rejected.`);
-      setTimeout(() => setActionSuccess(null), 4000);
-      return;
-    }
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === userId
+          ? {
+              ...u,
+              dealerStatus: "rejected",
+              dealerDetails: u.dealerDetails
+                ? {
+                    ...u.dealerDetails,
+                    rejectionReason: reason,
+                    reviewedAt: now,
+                    reviewedBy: "usr-admin-01",
+                  }
+                : undefined,
+            }
+          : u
+      )
+    );
+    setRejectingUserId(null);
+    setActionSuccess(`Updating application and dispatching notification...`);
 
     try {
-      const userRef = doc(db, "users", userId);
-      await updateDoc(userRef, {
-        dealerStatus: "rejected",
-        "dealerDetails.rejectionReason": reason,
-        "dealerDetails.reviewedAt": now,
-        "dealerDetails.reviewedBy": "admin",
-        updatedAt: now,
+      if (!isDemoMode && db) {
+        const userRef = doc(db, "users", userId);
+        await updateDoc(userRef, {
+          dealerStatus: "rejected",
+          "dealerDetails.rejectionReason": reason,
+          "dealerDetails.reviewedAt": now,
+          "dealerDetails.reviewedBy": "admin",
+          updatedAt: now,
+        });
+      }
+
+      // Trigger trusted server-side multi-channel notification dispatcher
+      await fetch(`/api/dealers/${userId}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "rejected",
+          reason,
+          dealerName: dealerUser?.dealerDetails?.businessName || dealerUser?.name,
+          contactPerson: dealerUser?.dealerDetails?.contactPerson || dealerUser?.name,
+          email: dealerUser?.email,
+          phone: dealerUser?.phone,
+        }),
       });
-      setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, dealerStatus: "rejected" } : u))
-      );
-      setRejectingUserId(null);
-      setActionSuccess(`Application marked rejected in Firestore.`);
+
+      setActionSuccess(`Application marked rejected and notification sent.`);
       setTimeout(() => setActionSuccess(null), 4000);
     } catch (err: unknown) {
       const error = err as Error;
-      alert("Error rejecting dealer: " + error.message);
+      setActionSuccess(`Application updated locally (${error.message})`);
+      setTimeout(() => setActionSuccess(null), 4000);
     }
   };
 

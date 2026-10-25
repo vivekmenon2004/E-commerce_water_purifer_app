@@ -59,3 +59,11 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 
+# n8n Automation & Local Artifacts
+automation/n8n/.env
+automation/n8n/.env.*
+!automation/n8n/.env.example
+automation/n8n/n8n_data/
+automation/n8n/local_artifacts/
+*.sqlite
+

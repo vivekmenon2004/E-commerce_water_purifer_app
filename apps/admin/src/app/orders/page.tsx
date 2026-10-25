@@ -39,35 +39,50 @@ export default function OrdersPage() {
 
   const handleUpdateStatus = async (orderId: string, newStatus: Order["orderStatus"]) => {
     const updatedTimestamp = new Date().toISOString();
+    const orderObj = orders.find((o) => o.id === orderId);
 
-    if (isDemoMode || !db) {
-      setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, orderStatus: newStatus, updatedAt: updatedTimestamp } : o))
-      );
-      if (selectedOrder && selectedOrder.id === orderId) {
-        setSelectedOrder((prev) => (prev ? { ...prev, orderStatus: newStatus, updatedAt: updatedTimestamp } : null));
-      }
-      setUpdateFeedback(`Order ${orderId} status updated to "${newStatus}"`);
-      setTimeout(() => setUpdateFeedback(null), 3000);
-      return;
+    // Optimistically update UI state
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, orderStatus: newStatus, updatedAt: updatedTimestamp } : o))
+    );
+    if (selectedOrder && selectedOrder.id === orderId) {
+      setSelectedOrder((prev) => (prev ? { ...prev, orderStatus: newStatus, updatedAt: updatedTimestamp } : null));
     }
+    setUpdateFeedback(`Updating order ${orderId} to "${newStatus}"...`);
 
     try {
-      await updateDoc(doc(db, "orders", orderId), {
-        orderStatus: newStatus,
-        updatedAt: updatedTimestamp,
-      });
-      setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, orderStatus: newStatus, updatedAt: updatedTimestamp } : o))
-      );
-      if (selectedOrder && selectedOrder.id === orderId) {
-        setSelectedOrder((prev) => (prev ? { ...prev, orderStatus: newStatus, updatedAt: updatedTimestamp } : null));
+      // 1. Direct Firestore update if configured
+      if (!isDemoMode && db) {
+        await updateDoc(doc(db, "orders", orderId), {
+          orderStatus: newStatus,
+          updatedAt: updatedTimestamp,
+        });
       }
-      setUpdateFeedback(`Order ${orderId} saved to Firestore!`);
-      setTimeout(() => setUpdateFeedback(null), 3000);
+
+      // 2. Trigger trusted server-side multi-channel notification dispatcher (Push, Email, SMS)
+      const res = await fetch(`/api/orders/${orderId}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: newStatus,
+          customerName: orderObj?.customerName,
+          customerEmail: orderObj?.customerEmail,
+          customerPhone: orderObj?.customerPhone,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setUpdateFeedback(`Order ${orderId} updated to "${newStatus}" and customer notifications dispatched!`);
+      } else {
+        setUpdateFeedback(`Order ${orderId} updated to "${newStatus}" (Notification note: ${data.error || 'skipped'})`);
+      }
+      setTimeout(() => setUpdateFeedback(null), 4000);
     } catch (err: unknown) {
       const error = err as Error;
-      alert("Error updating order status: " + error.message);
+      console.warn('Status update API error:', error);
+      setUpdateFeedback(`Order updated locally (${error.message})`);
+      setTimeout(() => setUpdateFeedback(null), 4000);
     }
   };
 

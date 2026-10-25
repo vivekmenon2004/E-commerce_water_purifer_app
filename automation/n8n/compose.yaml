@@ -1,0 +1,29 @@
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: calinfco-n8n
+    restart: unless-stopped
+    ports:
+      # Local-only port binding for security (never expose directly to public networks)
+      - "127.0.0.1:5678:5678"
+    environment:
+      # Encryption key loaded from local .env (never hardcoded or committed)
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      # Timezone configuration for accurate IST scheduling
+      - TZ=Asia/Kolkata
+      - GENERIC_TIMEZONE=Asia/Kolkata
+      # Base server configuration
+      - N8N_PORT=5678
+      - N8N_HOST=127.0.0.1
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://127.0.0.1:5678/
+      # Privacy & Telemetry
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_PERSONALIZATION_ENABLED=false
+    volumes:
+      # Named persistent volume preserving workflows, executions, and local credentials
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  n8n_data:
+    name: calinfco_n8n_data

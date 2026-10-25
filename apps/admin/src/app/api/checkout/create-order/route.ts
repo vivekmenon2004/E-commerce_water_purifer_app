@@ -4,6 +4,7 @@ import path from 'node:path';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, isDemoMode, INITIAL_DEMO_USERS } from '@/lib/firebase';
 import { Order, OrderItem, Product } from '@/lib/types';
+import { dispatchOrderPlacedNotifications } from '@/lib/notification-dispatcher';
 
 // Server-side in-memory idempotency registry
 const processedPayments = new Map<string, Order>();
@@ -192,15 +193,39 @@ export async function POST(request: Request) {
     }
 
     // 6. Save to Firestore if connected
+    let customerDeviceToken: string | undefined = body.deviceToken;
     if (!isDemoMode && db) {
       try {
         const orderRef = doc(db, 'orders', orderId);
         await setDoc(orderRef, newOrder);
+
+        // Fetch user's registered device token if not provided in payload
+        if (!customerDeviceToken) {
+          const userDoc = await getDoc(doc(db, 'users', customerId));
+          if (userDoc.exists()) {
+            customerDeviceToken = userDoc.data()?.devicePushToken || userDoc.data()?.fcmToken;
+          }
+        }
       } catch (err: unknown) {
         const error = err as Error;
         console.warn('[Server Create Order] Could not write to live Firestore:', error.message);
       }
     }
+
+    // 7. Dispatch multi-channel notifications asynchronously (Push, Email, SMS, n8n)
+    const itemsSummary = verifiedItems.map(i => `${i.quantity}x ${i.name}`).join(', ');
+    dispatchOrderPlacedNotifications({
+      orderId,
+      customerName: newOrder.customerName,
+      customerEmail: newOrder.customerEmail,
+      customerPhone: newOrder.customerPhone,
+      deviceToken: customerDeviceToken,
+      totalAmount: newOrder.totalAmount,
+      itemsSummary: itemsSummary || 'Calinfco Water Purifier Equipment',
+      installationDate: newOrder.installationScheduledDate,
+    }).catch(err => {
+      console.warn('[Server Create Order] Notification dispatch encountered error:', err);
+    });
 
     return NextResponse.json({
       success: true,
