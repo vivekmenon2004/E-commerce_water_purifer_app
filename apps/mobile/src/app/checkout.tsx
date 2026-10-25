@@ -592,7 +592,13 @@ export default function CheckoutScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
-  scrollContent: { padding: Spacing.md, paddingBottom: 120 },
+  scrollContent: {
+    padding: Spacing.md,
+    paddingBottom: 120,
+    maxWidth: 1000,
+    width: '100%',
+    alignSelf: 'center',
+  },
   topBar: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md },
   backBtn: { padding: 4 },
   backBtnText: { color: '#38bdf8', fontSize: 13, fontWeight: '700' },

@@ -3,17 +3,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, isDemoMode, INITIAL_DEMO_USERS } from '@/lib/firebase';
+import { Order, OrderItem, Product } from '@/lib/types';
 
 // Server-side in-memory idempotency registry
-const processedPayments = new Map<string, any>();
-const processedIdempotencyKeys = new Map<string, any>();
+const processedPayments = new Map<string, Order>();
+const processedIdempotencyKeys = new Map<string, Order>();
 
 // Load authoritative seed products for server-side trusted price & stock verification
-function getAuthoritativeProducts() {
+function getAuthoritativeProducts(): Product[] {
   try {
     const seedPath = path.resolve(process.cwd(), '../../data/seed-products.json');
     if (fs.existsSync(seedPath)) {
-      return JSON.parse(fs.readFileSync(seedPath, 'utf8'));
+      return JSON.parse(fs.readFileSync(seedPath, 'utf8')) as Product[];
     }
   } catch (e) {
     console.warn('[Server Create Order] Could not read local seed-products.json:', e);
@@ -29,14 +30,12 @@ export async function POST(request: Request) {
       customerName,
       customerEmail,
       customerPhone,
-      userRoleAtPurchase = 'customer',
       items,
       paymentMethod = 'upi',
       paymentStatus = 'paid',
       shippingAddress,
       idempotencyKey,
       paymentDetails,
-      deliveryNotes,
       promoCode,
     } = body;
 
@@ -53,7 +52,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         isDuplicate: true,
-        orderId: existing.id,
+        orderId: existing?.id,
         order: existing,
         message: 'Order already created for this session (Duplicate suppressed)',
       });
@@ -65,7 +64,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         isDuplicate: true,
-        orderId: existing.id,
+        orderId: existing?.id,
         order: existing,
         message: 'Order already created for this transaction ID (Duplicate suppressed)',
       });
@@ -109,12 +108,12 @@ export async function POST(request: Request) {
 
     // 3. Authoritative Re-pricing & Stock Verification (NEVER trust prices from client)
     const authoritativeProducts = getAuthoritativeProducts();
-    const verifiedItems: any[] = [];
+    const verifiedItems: OrderItem[] = [];
     let subtotal = 0;
 
     for (const item of items) {
       const product = authoritativeProducts.find(
-        (p: any) => p.id === item.productId || p.sku === item.sku
+        (p: Product) => p.id === item.productId || p.sku === item.sku
       );
 
       if (!product || !product.isActive) {
@@ -163,7 +162,7 @@ export async function POST(request: Request) {
     const orderId = `ORD-${Date.now().toString().slice(-6)}`;
     const now = new Date().toISOString();
 
-    const newOrder = {
+    const newOrder: Order = {
       id: orderId,
       customerId,
       customerName: customerName || 'Valued Customer',
@@ -174,15 +173,11 @@ export async function POST(request: Request) {
       subtotal,
       discount,
       tax,
-      deliveryFee,
       totalAmount,
       paymentMethod,
       paymentStatus,
       orderStatus: 'placed',
       shippingAddress,
-      idempotencyKey: idempotencyKey || `idem_${Date.now()}`,
-      paymentDetails: paymentDetails || {},
-      deliveryNotes: deliveryNotes || '',
       installationScheduledDate: new Date(Date.now() + 86400000 * 2).toISOString(), // Next 48h
       createdAt: now,
       updatedAt: now,
@@ -201,8 +196,9 @@ export async function POST(request: Request) {
       try {
         const orderRef = doc(db, 'orders', orderId);
         await setDoc(orderRef, newOrder);
-      } catch (err: any) {
-        console.warn('[Server Create Order] Could not write to live Firestore:', err.message);
+      } catch (err: unknown) {
+        const error = err as Error;
+        console.warn('[Server Create Order] Could not write to live Firestore:', error.message);
       }
     }
 
@@ -213,10 +209,11 @@ export async function POST(request: Request) {
       effectiveRole: effectiveRoleAtPurchase,
       message: 'Order created and persisted successfully',
     });
-  } catch (error: any) {
-    console.error('[Server Create Order Error]:', error);
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error('[Server Create Order Error]:', err);
     return NextResponse.json(
-      { success: false, error: 'Failed to create order on server: ' + error.message },
+      { success: false, error: 'Failed to create order on server: ' + err.message },
       { status: 500 }
     );
   }

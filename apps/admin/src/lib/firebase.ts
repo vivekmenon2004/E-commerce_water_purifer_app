@@ -9,8 +9,7 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
-import { SEED_PRODUCTS } from './seed-data';
-import { UserProfile, Product, Order, ServiceRequest } from './types';
+import { UserProfile, Order, ServiceRequest } from './types';
 
 const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
@@ -280,5 +279,81 @@ export const INITIAL_DEMO_ORDERS: Order[] = [
     installationScheduledDate: '2026-10-26',
     createdAt: '2026-10-24T06:15:00Z',
     updatedAt: '2026-10-24T06:15:00Z',
+  },
+];
+
+export const INITIAL_DEMO_SERVICES: ServiceRequest[] = [
+  {
+    id: 'SRV-2089',
+    customerId: 'usr-cust-02',
+    customerName: 'Kiran Nambiar',
+    customerPhone: '+91 98450 11223',
+    customerAddress: 'HSR Layout Sector 2, Bangalore - 560102',
+    requestType: 'water_test',
+    status: 'assigned',
+    priority: 'medium',
+    technicianId: 'tech-01',
+    technicianName: 'Ramesh Kumar',
+    scheduledSlot: 'Today 16:00 - 18:00',
+    tdsReadingBeforePpm: 520,
+    tdsReadingAfterPpm: undefined,
+    resolutionNotes: 'Customer requested TDS test after muddy borewell water report.',
+    createdAt: '2026-10-24T08:00:00Z',
+    updatedAt: '2026-10-24T09:30:00Z',
+  },
+  {
+    id: 'SRV-2088',
+    customerId: 'usr-cust-03',
+    customerName: 'Srinivas Rao',
+    customerPhone: '+91 97311 44556',
+    customerAddress: 'Koramangala 4th Block, Bangalore - 560034',
+    requestType: 'filter_replacement',
+    status: 'in_progress',
+    priority: 'high',
+    technicianId: 'tech-02',
+    technicianName: 'Amit K.',
+    scheduledSlot: 'Today 14:00 - 15:30',
+    tdsReadingBeforePpm: 420,
+    tdsReadingAfterPpm: undefined,
+    resolutionNotes: 'Replacing RO membrane and sediment pre-filter.',
+    createdAt: '2026-10-24T07:15:00Z',
+    updatedAt: '2026-10-24T10:00:00Z',
+  },
+  {
+    id: 'SRV-2087',
+    customerId: 'usr-cust-04',
+    customerName: 'Meenakshi Sundaram',
+    customerPhone: '+91 94440 77889',
+    customerAddress: 'JP Nagar Phase 6, Bangalore - 560078',
+    orderId: 'ORD-2026-1002',
+    requestType: 'installation',
+    status: 'completed',
+    priority: 'high',
+    technicianId: 'tech-03',
+    technicianName: 'Suresh P.',
+    scheduledSlot: 'Today 11:00 - 12:45',
+    tdsReadingBeforePpm: 680,
+    tdsReadingAfterPpm: 74,
+    resolutionNotes: 'Installed Calinfco AquaShield Pro 10X. Pure water TDS verified at 74 ppm.',
+    createdAt: '2026-10-24T05:30:00Z',
+    updatedAt: '2026-10-24T12:45:00Z',
+  },
+  {
+    id: 'SRV-2086',
+    customerId: 'usr-cust-05',
+    customerName: 'Aditi Roy',
+    customerPhone: '+91 98800 33445',
+    customerAddress: '12th Main, Indiranagar, Bangalore - 560038',
+    requestType: 'repair',
+    status: 'completed',
+    priority: 'critical',
+    technicianId: 'tech-04',
+    technicianName: 'Deepak S.',
+    scheduledSlot: 'Today 09:30 - 10:30',
+    tdsReadingBeforePpm: 120,
+    tdsReadingAfterPpm: 78,
+    resolutionNotes: 'Emergency leakage fixed. Elbow connector replaced under warranty.',
+    createdAt: '2026-10-24T04:00:00Z',
+    updatedAt: '2026-10-24T10:30:00Z',
   },
 ];

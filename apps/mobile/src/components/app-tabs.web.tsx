@@ -6,13 +6,16 @@ import {
   TabTriggerSlotProps,
   TabListProps,
 } from 'expo-router/ui';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View, Text } from 'react-native';
 
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { useCart } from '@/context/cart-context';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
 export default function AppTabs() {
+  const { itemCount, wishlist } = useCart();
+
   return (
     <Tabs>
       <TabSlot style={{ height: '100%' }} />
@@ -25,10 +28,10 @@ export default function AppTabs() {
             <TabButton>Catalog</TabButton>
           </TabTrigger>
           <TabTrigger name="cart" href={"/cart" as any} asChild>
-            <TabButton>Cart</TabButton>
+            <TabButton badge={itemCount > 0 ? itemCount : undefined}>Cart</TabButton>
           </TabTrigger>
           <TabTrigger name="wishlist" href={"/wishlist" as any} asChild>
-            <TabButton>Wishlist</TabButton>
+            <TabButton badge={wishlist.length > 0 ? wishlist.length : undefined}>Wishlist</TabButton>
           </TabTrigger>
           <TabTrigger name="services" href="/services" asChild>
             <TabButton>Services</TabButton>
@@ -42,7 +45,12 @@ export default function AppTabs() {
   );
 }
 
-export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
+export function TabButton({
+  children,
+  isFocused,
+  badge,
+  ...props
+}: TabTriggerSlotProps & { badge?: number }) {
   return (
     <Pressable
       {...(props as any)}
@@ -50,9 +58,16 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
       <ThemedView
         type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
         style={styles.tabButtonView}>
-        <ThemedText type="small" themeColor={isFocused ? 'primary' : 'textSecondary'}>
-          {children}
-        </ThemedText>
+        <View style={styles.tabButtonInner}>
+          <ThemedText type="small" themeColor={isFocused ? 'primary' : 'textSecondary'}>
+            {children}
+          </ThemedText>
+          {badge !== undefined && (
+            <View style={styles.badgePill}>
+              <Text style={styles.badgePillText}>{badge > 99 ? '99+' : badge}</Text>
+            </View>
+          )}
+        </View>
       </ThemedView>
     </Pressable>
   );
@@ -102,5 +117,24 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 12,
+  },
+  tabButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  badgePill: {
+    backgroundColor: '#0284c7',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 10,
+    minWidth: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgePillText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '800',
   },
 });

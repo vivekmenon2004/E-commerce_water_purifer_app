@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Platform, Vibration } from 'react-native';
 import { Product } from '../types';
 import { Storage } from '../lib/storage';
 import { useAuth } from './auth-context';
@@ -6,6 +7,14 @@ import { useAuth } from './auth-context';
 export interface CartItem {
   product: Product;
   quantity: number;
+}
+
+export interface CartNotification {
+  id: string;
+  product: Product;
+  quantity: number;
+  message: string;
+  timestamp: number;
 }
 
 interface CartContextType {
@@ -30,6 +39,9 @@ interface CartContextType {
   applyPromoCode: (code: string) => { success: boolean; message: string };
   removePromoCode: () => void;
   isInitialized: boolean;
+  lastAddedNotification: CartNotification | null;
+  dismissNotification: () => void;
+  cartBounceTick: number;
 }
 
 const CartContext = createContext<CartContextType>({} as CartContextType);
@@ -41,6 +53,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [promoCode, setPromoCode] = useState<string>('');
   const [discountPercent, setDiscountPercent] = useState<number>(0);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
+  const [lastAddedNotification, setLastAddedNotification] = useState<CartNotification | null>(null);
+  const [cartBounceTick, setCartBounceTick] = useState<number>(0);
+
+  const dismissNotification = () => {
+    setLastAddedNotification(null);
+  };
 
   // Restore cart, wishlist, and promo from persistent storage on mount
   useEffect(() => {
@@ -114,6 +132,29 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         return [...prev, { product, quantity: initialQty }];
       }
     });
+
+    // Tactile haptic feedback
+    try {
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && 'navigator' in window && window.navigator.vibrate) {
+          window.navigator.vibrate([15, 30, 15]);
+        }
+      } else {
+        Vibration.vibrate(35);
+      }
+    } catch {
+      // Ignore vibration error on unsupported platforms
+    }
+
+    // Trigger visual notification and bounce animation across components
+    setLastAddedNotification({
+      id: `${product.id}-${Date.now()}`,
+      product,
+      quantity: quantityToAdd,
+      message,
+      timestamp: Date.now(),
+    });
+    setCartBounceTick(prev => prev + 1);
 
     return { success, message };
   };
@@ -226,6 +267,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         applyPromoCode,
         removePromoCode,
         isInitialized,
+        lastAddedNotification,
+        dismissNotification,
+        cartBounceTick,
       }}>
       {children}
     </CartContext.Provider>

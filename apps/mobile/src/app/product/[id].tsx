@@ -21,6 +21,7 @@ import { SEED_PRODUCTS } from '@/constants/seed-data';
 import { useCart } from '@/context/cart-context';
 import { useAuth } from '@/context/auth-context';
 import { Product } from '@/types';
+import { AnimatedCartBadge } from '@/components/animated-cart-badge';
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -30,7 +31,7 @@ export default function ProductDetailScreen() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
-  const [addedToast, setAddedToast] = useState<string | null>(null);
+  const [isAddedJustNow, setIsAddedJustNow] = useState(false);
 
   useEffect(() => {
     async function fetchProduct() {
@@ -107,9 +108,9 @@ export default function ProductDetailScreen() {
   const savingsPercent = Math.round((savings / product.mrp) * 100);
 
   const handleAddToCart = () => {
-    const res = addToCart(product, quantity);
-    setAddedToast(res.message);
-    setTimeout(() => setAddedToast(null), 3000);
+    addToCart(product, quantity);
+    setIsAddedJustNow(true);
+    setTimeout(() => setIsAddedJustNow(false), 2000);
   };
 
   const handleBuyNow = () => {
@@ -129,14 +130,8 @@ export default function ProductDetailScreen() {
               <Text style={styles.backLinkText}>← Back</Text>
             </TouchableOpacity>
             <Text style={styles.skuHeader}>{product.sku}</Text>
+            <AnimatedCartBadge />
           </View>
-
-          {/* Toast Notification */}
-          {addedToast && (
-            <View style={styles.toastBox}>
-              <Text style={styles.toastText}>✓ {addedToast}</Text>
-            </View>
-          )}
 
           {/* Product Hero Image */}
           <View style={styles.imageContainer}>
@@ -258,10 +253,20 @@ export default function ProductDetailScreen() {
             {/* Action Buttons */}
             <View style={styles.actionRow}>
               <TouchableOpacity
-                style={[styles.addToCartBtn, !inStock && styles.btnDisabled]}
+                style={[
+                  styles.addToCartBtn,
+                  isAddedJustNow && styles.addToCartBtnSuccess,
+                  !inStock && styles.btnDisabled,
+                ]}
                 disabled={!inStock}
                 onPress={handleAddToCart}>
-                <Text style={styles.addToCartBtnText}>Add to Cart 🛒</Text>
+                <Text
+                  style={[
+                    styles.addToCartBtnText,
+                    isAddedJustNow && { color: '#ffffff' },
+                  ]}>
+                  {isAddedJustNow ? '✓ Added to Cart!' : 'Add to Cart 🛒'}
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -454,6 +459,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: Radius.md,
     alignItems: 'center',
+  },
+  addToCartBtnSuccess: {
+    backgroundColor: '#059669',
+    borderColor: '#34d399',
   },
   addToCartBtnText: { color: '#38bdf8', fontSize: 14, fontWeight: '800' },
   buyNowBtn: {

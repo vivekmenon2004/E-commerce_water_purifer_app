@@ -50,8 +50,9 @@ export async function POST(request: Request) {
           currency: data.currency,
           receipt: data.receipt,
         });
-      } catch (liveErr: any) {
-        console.warn('[Razorpay API] Falling back to labeled mock mode:', liveErr.message);
+      } catch (liveErr: unknown) {
+        const error = liveErr as Error;
+        console.warn('[Razorpay API] Falling back to labeled mock mode:', error.message);
         // Fall back gracefully to mock mode if sandbox API fails or network issue
       }
     }
@@ -70,9 +71,10 @@ export async function POST(request: Request) {
       receipt: receipt || `rcpt_mock_${Date.now()}`,
       message: 'Razorpay Test Mode: Mock payment fallback active (RAZORPAY_KEY_SECRET is not configured or in sandbox mode)',
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const error = err as Error;
     return NextResponse.json(
-      { success: false, error: err.message || 'Razorpay order creation failed' },
+      { success: false, error: error.message || 'Razorpay order creation failed' },
       { status: 500 }
     );
   }

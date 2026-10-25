@@ -14,13 +14,16 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Radius } from '@/constants/theme';
 import { useCart } from '@/context/cart-context';
+import { AnimatedCartBadge } from '@/components/animated-cart-badge';
 
 export default function WishlistScreen() {
   const { wishlist, toggleWishlist, addToCart } = useCart();
 
   const handleMoveToCart = (product: any) => {
     addToCart(product, 1);
-    toggleWishlist(product);
+    setTimeout(() => {
+      toggleWishlist(product);
+    }, 350);
   };
 
   return (
@@ -33,12 +36,15 @@ export default function WishlistScreen() {
               💖 SAVED ITEMS
             </ThemedText>
             <View style={styles.titleRow}>
-              <ThemedText type="title" style={styles.title}>
-                My Wishlist
-              </ThemedText>
-              <View style={styles.countBadge}>
-                <Text style={styles.countBadgeText}>{wishlist.length} saved</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <ThemedText type="title" style={styles.title}>
+                  My Wishlist
+                </ThemedText>
+                <View style={styles.countBadge}>
+                  <Text style={styles.countBadgeText}>{wishlist.length} saved</Text>
+                </View>
               </View>
+              <AnimatedCartBadge />
             </View>
           </View>
 

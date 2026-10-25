@@ -20,12 +20,14 @@ import { useCart } from '@/context/cart-context';
 import { db, isDemoMode } from '@/lib/firebase';
 import { SEED_PRODUCTS, PRODUCT_CATEGORIES } from '@/constants/seed-data';
 import { Product } from '@/types';
+import { AnimatedCartBadge } from '@/components/animated-cart-badge';
+import { InteractiveAddBtn } from '@/components/interactive-add-btn';
 
 type SortOption = 'featured' | 'priceAsc' | 'priceDesc' | 'rating';
 
 export default function ExploreScreen() {
   const { user, isDealer } = useAuth();
-  const { addToCart, toggleWishlist, isInWishlist } = useCart();
+  const { toggleWishlist, isInWishlist } = useCart();
   const params = useLocalSearchParams<{ category?: string }>();
 
   const [selectedCategory, setSelectedCategory] = useState<string>(params.category || 'all');
@@ -34,7 +36,6 @@ export default function ExploreScreen() {
   const [inStockOnly, setInStockOnly] = useState(false);
   const [products, setProducts] = useState<Product[]>(SEED_PRODUCTS);
   const [loading, setLoading] = useState(false);
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (params.category) {
@@ -72,12 +73,6 @@ export default function ExploreScreen() {
     fetchProducts();
   }, []);
 
-  const handleQuickAdd = (product: Product, e: any) => {
-    e.stopPropagation?.();
-    const res = addToCart(product, 1);
-    setToastMsg(res.message);
-    setTimeout(() => setToastMsg(null), 2500);
-  };
 
   const handleToggleWishlist = (product: Product, e: any) => {
     e.stopPropagation?.();
@@ -122,23 +117,19 @@ export default function ExploreScreen() {
           
           {/* Header */}
           <View style={styles.header}>
-            <ThemedText type="subtitle" themeColor="primary" style={styles.badgeText}>
-              💧 COMPLETE HARDWARE & SPARES CATALOG
-            </ThemedText>
-            <ThemedText type="title" style={styles.title}>
-              Pure Water Products
-            </ThemedText>
-            <Text style={styles.subtitle}>
-              65+ verified products with direct manufacturer warranty
-            </Text>
-          </View>
-
-          {/* Quick Toast */}
-          {toastMsg && (
-            <View style={styles.toastBox}>
-              <Text style={styles.toastText}>✓ {toastMsg}</Text>
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <ThemedText type="subtitle" themeColor="primary" style={styles.badgeText}>
+                💧 COMPLETE HARDWARE & SPARES CATALOG
+              </ThemedText>
+              <ThemedText type="title" style={styles.title}>
+                Pure Water Products
+              </ThemedText>
+              <Text style={styles.subtitle}>
+                65+ verified products with direct manufacturer warranty
+              </Text>
             </View>
-          )}
+            <AnimatedCartBadge />
+          </View>
 
           {/* Search Box */}
           <View style={styles.searchContainer}>
@@ -313,16 +304,8 @@ export default function ExploreScreen() {
 
                       {/* Card Action Row */}
                       <View style={styles.cardFooter}>
-                        <TouchableOpacity
-                          style={[styles.cardAddToCartBtn, !inStock && styles.btnDisabled]}
-                          disabled={!inStock}
-                          onPress={(e) => handleQuickAdd(product, e)}>
-                          <Text style={styles.cardAddToCartBtnText}>
-                            {inStock ? 'Add to Cart 🛒' : 'Out of Stock'}
-                          </Text>
-                        </TouchableOpacity>
-
-                        <Text style={styles.viewDetailHint}>View Details →</Text>
+                        <InteractiveAddBtn product={product} size="md" style={{ flex: 1 }} />
+                        <Text style={styles.viewDetailHint}>Details →</Text>
                       </View>
                     </View>
                   </TouchableOpacity>
@@ -340,10 +323,16 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
-  scrollContent: { padding: Spacing.lg, paddingBottom: 110 },
+  scrollContent: {
+    padding: Spacing.lg,
+    paddingBottom: 110,
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
+  },
   header: { marginBottom: Spacing.md },
   badgeText: { fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 4 },
-  title: { fontSize: 24, fontWeight: '800' },
+  title: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },
   subtitle: { fontSize: 13, color: '#94a3b8', marginTop: 4 },
 
   toastBox: {
@@ -352,19 +341,24 @@ const styles = StyleSheet.create({
     padding: Spacing.sm,
     marginBottom: Spacing.md,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#10b981',
+    shadowColor: '#10b981',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
   toastText: { color: '#ffffff', fontSize: 12, fontWeight: '700' },
 
   searchContainer: { marginBottom: Spacing.sm },
   searchInput: {
     backgroundColor: '#1e293b',
-    borderRadius: Radius.md,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    borderRadius: Radius.lg,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     color: '#ffffff',
     fontSize: 13,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: 'rgba(56, 189, 248, 0.25)',
   },
 
   categoryScroll: { gap: 8, paddingBottom: 6 },
@@ -390,12 +384,12 @@ const styles = StyleSheet.create({
   },
   sortPills: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   sortLabel: { color: '#64748b', fontSize: 11, fontWeight: '600' },
-  sortPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.sm, backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#334155' },
+  sortPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: Radius.sm, backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#334155' },
   sortPillActive: { backgroundColor: '#0284c7', borderColor: '#38bdf8' },
   sortPillText: { color: '#94a3b8', fontSize: 11, fontWeight: '600' },
   sortPillTextActive: { color: '#ffffff' },
 
-  stockToggle: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.sm, backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#334155' },
+  stockToggle: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: Radius.sm, backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#334155' },
   stockToggleActive: { backgroundColor: 'rgba(16, 185, 129, 0.2)', borderColor: '#10b981' },
   stockToggleText: { color: '#94a3b8', fontSize: 11, fontWeight: '600' },
   stockToggleTextActive: { color: '#10b981' },
@@ -422,66 +416,83 @@ const styles = StyleSheet.create({
   resetBtn: { backgroundColor: '#0284c7', paddingHorizontal: 16, paddingVertical: 10, borderRadius: Radius.md },
   resetBtnText: { color: '#ffffff', fontSize: 12, fontWeight: '700' },
 
-  productList: { gap: Spacing.md },
+  productList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+    justifyContent: 'space-between',
+  },
   productCard: {
     backgroundColor: '#1e293b',
-    borderRadius: Radius.lg,
+    borderRadius: Radius.xl,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: 'rgba(56, 189, 248, 0.15)',
+    flexBasis: '48%',
+    flexGrow: 1,
+    minWidth: 320,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
   },
-  imageWrap: { position: 'relative', width: '100%', height: 160, backgroundColor: '#0f172a' },
+  imageWrap: { position: 'relative', width: '100%', height: 220, backgroundColor: '#0f172a' },
   productImage: { width: '100%', height: '100%' },
   wishlistBtn: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    top: 12,
+    right: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  wishlistBtnActive: { backgroundColor: 'rgba(239, 68, 68, 0.2)' },
+  wishlistBtnActive: { backgroundColor: 'rgba(239, 68, 68, 0.25)', borderColor: '#ef4444' },
   wishlistBtnIcon: { fontSize: 16 },
 
-  cardBody: { padding: Spacing.md },
-  cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  cardBody: { padding: Spacing.md, justifyContent: 'space-between', flex: 1 },
+  cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6, alignItems: 'center' },
   skuBadge: { color: '#38bdf8', fontSize: 11, fontWeight: '800', letterSpacing: 0.8 },
-  catBadge: { color: '#94a3b8', fontSize: 10, fontWeight: '700' },
-  productName: { color: '#ffffff', fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  catBadge: { color: '#94a3b8', fontSize: 10, fontWeight: '700', backgroundColor: 'rgba(51, 65, 85, 0.5)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  productName: { color: '#ffffff', fontSize: 16, fontWeight: '700', marginBottom: 4, lineHeight: 22 },
   productDesc: { color: '#94a3b8', fontSize: 12, lineHeight: 17, marginBottom: 8 },
 
-  metaRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  ratingText: { color: '#fbbf24', fontSize: 11, fontWeight: '600' },
-  stockText: { color: '#10b981', fontSize: 11, fontWeight: '600' },
+  metaRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10, alignItems: 'center' },
+  ratingText: { color: '#fbbf24', fontSize: 11, fontWeight: '700' },
+  stockText: { color: '#10b981', fontSize: 11, fontWeight: '700' },
 
-  priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: 8, borderTopWidth: 1, borderTopColor: '#334155' },
-  priceLabel: { color: '#94a3b8', fontSize: 10, textTransform: 'uppercase', marginBottom: 2 },
+  priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(51, 65, 85, 0.6)' },
+  priceLabel: { color: '#94a3b8', fontSize: 10, textTransform: 'uppercase', marginBottom: 2, fontWeight: '600' },
   priceGroup: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
-  mainPrice: { color: '#38bdf8', fontSize: 18, fontWeight: '800' },
+  mainPrice: { color: '#38bdf8', fontSize: 20, fontWeight: '900' },
   mrpStrike: { color: '#64748b', fontSize: 12, textDecorationLine: 'line-through' },
-  savingsBadge: { backgroundColor: '#065f46', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  dealerSavings: { backgroundColor: '#075985' },
+  savingsBadge: { backgroundColor: '#065f46', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: '#10b981' },
+  dealerSavings: { backgroundColor: '#075985', borderColor: '#38bdf8' },
   savingsText: { color: '#ffffff', fontSize: 10, fontWeight: '800' },
 
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 10,
-    paddingTop: 8,
+    marginTop: 12,
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: 'rgba(51, 65, 85, 0.6)',
   },
   cardAddToCartBtn: {
     backgroundColor: '#0284c7',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: Radius.sm,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: Radius.md,
+    shadowColor: '#0284c7',
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
   btnDisabled: { opacity: 0.4 },
-  cardAddToCartBtnText: { color: '#ffffff', fontSize: 12, fontWeight: '700' },
-  viewDetailHint: { color: '#38bdf8', fontSize: 11, fontWeight: '700' },
+  cardAddToCartBtnText: { color: '#ffffff', fontSize: 12, fontWeight: '800' },
+  viewDetailHint: { color: '#38bdf8', fontSize: 12, fontWeight: '700' },
 });

@@ -348,7 +348,13 @@ export default function CartScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
-  scrollContent: { padding: Spacing.lg, paddingBottom: 110 },
+  scrollContent: {
+    padding: Spacing.lg,
+    paddingBottom: 110,
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
+  },
   header: { marginBottom: Spacing.md },
   badgeText: { fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 4 },
   titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

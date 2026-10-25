@@ -3,13 +3,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { doc, getDoc } from 'firebase/firestore';
 import { db, isDemoMode, INITIAL_DEMO_USERS } from '@/lib/firebase';
+import { OrderItem, Product } from '@/lib/types';
 
 // Load authoritative seed products for server-side trusted price & stock verification
-function getAuthoritativeProducts() {
+function getAuthoritativeProducts(): Product[] {
   try {
     const seedPath = path.resolve(process.cwd(), '../../data/seed-products.json');
     if (fs.existsSync(seedPath)) {
-      return JSON.parse(fs.readFileSync(seedPath, 'utf8'));
+      return JSON.parse(fs.readFileSync(seedPath, 'utf8')) as Product[];
     }
   } catch (e) {
     console.warn('[Server Validate] Could not read local seed-products.json:', e);
@@ -39,12 +40,12 @@ export async function POST(request: Request) {
         try {
           const userSnap = await getDoc(doc(db, 'users', customerId));
           if (userSnap.exists()) {
-            const data = userSnap.data();
-            userDealerStatus = data.dealerStatus || 'none';
-            isVerifiedDealer = data.role === 'dealer' && data.dealerStatus === 'approved';
+            const uData = userSnap.data();
+            userDealerStatus = uData.dealerStatus || 'none';
+            isVerifiedDealer = uData.role === 'dealer' && uData.dealerStatus === 'approved';
           }
         } catch (err) {
-          console.warn('[Server Validate] Error checking Firestore user role:', err);
+          console.warn('[Server Validate] Error checking user in Firestore:', err);
         }
       } else {
         const demoUser = INITIAL_DEMO_USERS.find(u => u.id === customerId);
@@ -69,12 +70,12 @@ export async function POST(request: Request) {
 
     // 2. Validate Products, Pricing & Stock
     const authoritativeProducts = getAuthoritativeProducts();
-    const verifiedItems: any[] = [];
+    const verifiedItems: OrderItem[] = [];
     let subtotal = 0;
 
     for (const item of items) {
       const product = authoritativeProducts.find(
-        (p: any) => p.id === item.productId || p.sku === item.sku
+        (p: Product) => p.id === item.productId || p.sku === item.sku
       );
 
       if (!product) {
@@ -157,10 +158,11 @@ export async function POST(request: Request) {
         validatedAt: new Date().toISOString(),
       },
     });
-  } catch (error: any) {
-    console.error('[Server Validate Error]:', error);
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error('[Server Validate Error]:', err);
     return NextResponse.json(
-      { valid: false, errors: ['Failed to validate cart with server: ' + error.message] },
+      { valid: false, errors: ['Failed to validate cart with server: ' + err.message] },
       { status: 500 }
     );
   }

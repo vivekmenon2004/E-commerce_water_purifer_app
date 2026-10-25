@@ -5,6 +5,7 @@ import Link from "next/link";
 import { collection, getDocs } from "firebase/firestore";
 import { db, isDemoMode, INITIAL_DEMO_USERS } from "@/lib/firebase";
 import { UserProfile } from "@/lib/types";
+import { CustomersIcon } from "@/components/icons";
 
 export default function CustomersAmcPage() {
   const [users, setUsers] = useState<UserProfile[]>(INITIAL_DEMO_USERS);
@@ -30,8 +31,9 @@ export default function CustomersAmcPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800 pb-5">
         <div>
-          <h2 className="text-2xl font-black text-white tracking-wide">
-            👥 User Directory & Role Management
+          <h2 className="text-2xl font-black text-white tracking-wide flex items-center gap-2.5">
+            <CustomersIcon className="w-6 h-6 text-cyan-400" />
+            <span>User Directory & Role Management</span>
           </h2>
           <p className="text-sm text-slate-400 mt-1">
             Registered customers, verified wholesale dealers, and field technicians

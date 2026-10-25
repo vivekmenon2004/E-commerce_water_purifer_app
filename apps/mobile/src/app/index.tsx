@@ -16,21 +16,16 @@ import { Spacing, Radius } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
 import { useCart } from '@/context/cart-context';
 import { SEED_PRODUCTS, PRODUCT_CATEGORIES } from '@/constants/seed-data';
+import { AnimatedCartBadge } from '@/components/animated-cart-badge';
+import { InteractiveAddBtn } from '@/components/interactive-add-btn';
 
 export default function HomeScreen() {
   const { user, isDealer } = useAuth();
-  const { itemCount, wishlist, addToCart } = useCart();
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const { wishlist } = useCart();
 
   // Pick top featured items
   const featuredPurifiers = SEED_PRODUCTS.filter(p => p.category === 'water purifiers').slice(0, 4);
   const featuredSpares = SEED_PRODUCTS.filter(p => p.category === 'filters' || p.category === 'spare parts').slice(0, 4);
-
-  const handleQuickAdd = (product: any) => {
-    const res = addToCart(product, 1);
-    setToastMsg(res.message);
-    setTimeout(() => setToastMsg(null), 2500);
-  };
 
   const CATEGORY_CARDS = [
     { id: 'water purifiers', title: 'Water Purifiers', icon: '🚰', desc: 'RO+UV+UF & Alkaline' },
@@ -71,25 +66,9 @@ export default function HomeScreen() {
                 )}
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.iconBtn}
-                onPress={() => router.push('/cart' as any)}>
-                <Text style={styles.iconEmoji}>🛒</Text>
-                {itemCount > 0 && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeCount}>{itemCount}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
+              <AnimatedCartBadge />
             </View>
           </View>
-
-          {/* Toast Message */}
-          {toastMsg && (
-            <View style={styles.toastBox}>
-              <Text style={styles.toastText}>✓ {toastMsg}</Text>
-            </View>
-          )}
 
           {/* Hero Banner */}
           <View style={styles.heroBanner}>
@@ -191,11 +170,7 @@ export default function HomeScreen() {
                         <Text style={styles.cardPrice}>₹{activePrice.toLocaleString('en-IN')}</Text>
                         <Text style={styles.cardMrp}>₹{p.mrp.toLocaleString('en-IN')}</Text>
                       </View>
-                      <TouchableOpacity
-                        style={styles.quickAddBtn}
-                        onPress={() => handleQuickAdd(p)}>
-                        <Text style={styles.quickAddBtnText}>+ Add</Text>
-                      </TouchableOpacity>
+                      <InteractiveAddBtn product={p} size="sm" />
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -225,11 +200,7 @@ export default function HomeScreen() {
                   <Text style={styles.spareName} numberOfLines={1}>{p.name}</Text>
                   <Text style={styles.sparePrice}>₹{p.retailPrice.toLocaleString('en-IN')}</Text>
                 </View>
-                <TouchableOpacity
-                  style={styles.quickAddSpare}
-                  onPress={() => handleQuickAdd(p)}>
-                  <Text style={styles.quickAddSpareText}>🛒</Text>
-                </TouchableOpacity>
+                <InteractiveAddBtn product={p} size="sm" label="+ Add 🛒" />
               </TouchableOpacity>
             ))}
           </View>
@@ -243,7 +214,13 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
-  scrollContent: { padding: Spacing.lg, paddingBottom: 110 },
+  scrollContent: {
+    padding: Spacing.lg,
+    paddingBottom: 110,
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
+  },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
   badgeText: { fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 2 },
   title: { fontSize: 22, fontWeight: '800' },

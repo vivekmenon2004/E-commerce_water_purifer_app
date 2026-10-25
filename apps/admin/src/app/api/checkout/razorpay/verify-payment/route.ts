@@ -64,9 +64,10 @@ export async function POST(request: Request) {
       { verified: false, error: 'Payment verification failed' },
       { status: 400 }
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const error = err as Error;
     return NextResponse.json(
-      { verified: false, error: err.message || 'Signature verification error' },
+      { verified: false, error: error.message || 'Signature verification error' },
       { status: 500 }
     );
   }

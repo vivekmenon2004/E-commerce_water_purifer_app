@@ -1,7 +1,7 @@
 import { Product } from './types';
 import seedProductsJson from '../../../../data/seed-products.json';
 
-export const SEED_PRODUCTS: Product[] = (seedProductsJson as any[]).map((p) => ({
+export const SEED_PRODUCTS: Product[] = (seedProductsJson as unknown as Product[]).map((p) => ({
   ...p,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
