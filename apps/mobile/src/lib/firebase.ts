@@ -15,7 +15,13 @@ import { UserProfile, Product, Order } from '../types';
 const apiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
 const projectId = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID;
 
-export const isDemoMode = !apiKey || apiKey.includes('your-expo') || apiKey === '';
+export const isDemoMode =
+  !apiKey ||
+  apiKey === '' ||
+  apiKey.includes('your-expo') ||
+  apiKey.includes('demo') ||
+  apiKey.includes('sample') ||
+  apiKey.startsWith('AIzaSy') === false;
 
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;

@@ -14,7 +14,15 @@ import { UserProfile, Order, ServiceRequest } from './types';
 const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 
-export const isDemoMode = !apiKey || apiKey.includes('your-next') || apiKey === '';
+// Real Firebase Web API Keys always start with 'AIzaSy' and are 39 chars long.
+// If missing, empty, or using dummy/demo strings, run safely in zero-breakage Demo Mode.
+export const isDemoMode =
+  !apiKey ||
+  apiKey === '' ||
+  apiKey.includes('your-next') ||
+  apiKey.includes('demo') ||
+  apiKey.includes('sample') ||
+  apiKey.startsWith('AIzaSy') === false;
 
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
